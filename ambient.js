@@ -1,10 +1,15 @@
-/* Quiet — ambient cinematic beach (dual crossfading video) + gentle wave sound.
- * Off/on cycles: off → scene → sound (waves audio). First run defaults to 'scene'.
- * Video pattern follows rain-view: two stacked <video>s; we fade B in shortly
- * before A reaches its loop seam, so the loop is invisible (raw clips don't loop
- * cleanly). Source is theme-aware (day / dusk) and resolution-aware (mobile/desktop).
- * Audio never autoplays — starts only on a user gesture (Pocket Card unlock pattern).
- * Depends on STORE (from app.js). Loads after app.js. */
+/* Quiet — ambient cinematic beach (always-on video) + gentle wave sound.
+ *
+ * Video: ALWAYS plays. Dual crossfading <video>s (rain-view pattern) hide the
+ * loop seam. If video can't load/decode/play, we gracefully fall back to a single
+ * still background image (the poster) — the beach is never missing.
+ *
+ * Sound: a simple ON/OFF toggle, ON by default. Browsers forbid true autoplay of
+ * audio, so we arm it to start on the user's first interaction anywhere (the
+ * rain-view unlock: silent-MP3 + retry on touchend/click/keydown). The toggle
+ * just flips whether sound is enabled; the choice persists.
+ *
+ * Depends on STORE (app.js). Loads after app.js. */
 (function () {
   'use strict';
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -13,101 +18,106 @@
   const waves = document.getElementById('waves');
   const vidA = document.getElementById('vidA');
   const vidB = document.getElementById('vidB');
-  if (!btn || !sceneEl || !vidA || !vidB) return;
+  if (!sceneEl) return;
 
-  const STATES = ['off', 'scene', 'sound'];
-  const LABELS = { off: 'off', scene: 'scene only', sound: 'scene + waves' };
-  let state = 'off';
-  let videoReady = false;
+  // Scene content always shows (drives the lava-rock panel + readable text).
+  document.body.classList.add('scene-on');
 
   /* ---- Source selection (theme + size aware) ---- */
   const isMobile = matchMedia('(max-width: 560px)').matches;
-  function srcFor(dark) {
-    const base = dark ? 'assets/beach-' : 'assets/beach-';
-    const size = isMobile ? 'mobile' : 'desktop';
-    return dark ? `assets/beach-${size}-dusk.mp4` : `assets/beach-${size}.mp4`;
-  }
-  function posterFor(dark) { return dark ? 'assets/beach-poster-dusk.jpg' : 'assets/beach-poster.jpg'; }
   function isDark() { return matchMedia('(prefers-color-scheme: dark)').matches; }
+  function srcFor() { const size = isMobile ? 'mobile' : 'desktop'; return isDark() ? `assets/beach-${size}-dusk.mp4` : `assets/beach-${size}.mp4`; }
+  function posterFor() { return isDark() ? 'assets/beach-poster-dusk.jpg' : 'assets/beach-poster.jpg'; }
 
-  function setSources() {
-    const src = srcFor(isDark());
-    const poster = posterFor(isDark());
-    [vidA, vidB].forEach(v => {
-      if (v.getAttribute('src') !== src) { v.setAttribute('src', src); v.setAttribute('poster', poster); v.load(); }
-    });
+  /* ---- Graceful fallback to a still image ---- */
+  let usingFallback = false;
+  function fallbackToImage() {
+    if (usingFallback) return; usingFallback = true;
+    // The CSS already paints assets/beach-poster*.jpg as the .scene background,
+    // so we just hide the (broken) videos and reveal the scene.
+    [vidA, vidB].forEach(v => { try { v.style.display = 'none'; } catch (e) {} });
+    sceneEl.classList.add('ready', 'fallback');
   }
 
-  /* ---- Seamless dual-video crossfade loop (rain-view pattern) ---- */
-  let active = vidA, idle = vidB;
-  let xfTimer = 0;
-  const XF = 1.1;            // crossfade seconds
+  /* ---- Dual-video crossfade loop (rain-view pattern) ---- */
+  let active = vidA, idle = vidB, xfTimer = 0, videoStarted = false;
+  const XF = 1.1;
   function scheduleCrossfade() {
     clearTimeout(xfTimer);
-    if (!active.duration || !isFinite(active.duration)) return;
+    if (!active || !active.duration || !isFinite(active.duration)) return;
     const remaining = (active.duration - active.currentTime - XF) * 1000;
     xfTimer = setTimeout(crossfade, Math.max(50, remaining));
   }
   function crossfade() {
-    if (state === 'off') return;
-    // bring the idle video to the start, play, fade it in; swap roles
+    if (usingFallback) return;
     try { idle.currentTime = 0; } catch (e) {}
-    tryPlay(idle);
+    playVid(idle);
     idle.classList.add('visible');
     active.classList.remove('visible');
-    const wasActive = active;
+    const old = active;
     [active, idle] = [idle, active];
-    // after the fade, reset the now-idle (old active) so it's ready next cycle
-    setTimeout(() => { try { wasActive.pause(); wasActive.currentTime = 0; } catch (e) {} }, XF * 1000 + 50);
+    setTimeout(() => { try { old.pause(); old.currentTime = 0; } catch (e) {} }, XF * 1000 + 50);
     scheduleCrossfade();
   }
 
-  // If the browser blocks muted autoplay (some Safari/Low-Power configs), retry
-  // the play on the very first user interaction so the video never stays frozen.
-  let gestureArmed = false;
-  function armGestureRetry() {
-    if (gestureArmed) return; gestureArmed = true;
-    const go = () => {
-      [vidA, vidB].forEach(v => { v.muted = true; });
-      const p = active.play(); if (p && p.catch) p.catch(() => {});
-    };
-    ['pointerdown', 'touchend', 'keydown', 'click'].forEach(ev =>
-      document.addEventListener(ev, go, { once: true, passive: true }));
+  let gestureArmedForVideo = false;
+  function armVideoGesture() {
+    if (gestureArmedForVideo) return; gestureArmedForVideo = true;
+    const go = () => { [vidA, vidB].forEach(v => { v.muted = true; }); playVid(active); };
+    ['pointerdown', 'touchend', 'keydown', 'click'].forEach(ev => document.addEventListener(ev, go, { once: true, passive: true }));
   }
-
-  function tryPlay(v) {
-    v.muted = true; v.defaultMuted = true; v.playsInline = true; // belt + suspenders for autoplay
+  function playVid(v) {
+    if (!v) return;
+    v.muted = true; v.defaultMuted = true; v.playsInline = true;
     const p = v.play();
-    if (p && p.catch) p.catch(() => { armGestureRetry(); });
+    if (p && p.catch) p.catch(() => armVideoGesture());
   }
 
   function startVideo() {
-    setSources();
-    // make A the visible base
+    if (!vidA || !vidB) { fallbackToImage(); return; }
+    const src = srcFor();
+    [vidA, vidB].forEach(v => { if (v.getAttribute('src') !== src) { v.setAttribute('src', src); v.setAttribute('poster', posterFor()); } });
     vidA.classList.add('visible'); vidB.classList.remove('visible');
     active = vidA; idle = vidB;
+
+    let failed = false;
+    const onError = () => { if (!failed) { failed = true; fallbackToImage(); } };
+    vidA.addEventListener('error', onError, { once: true });
+
     const begin = () => {
-      videoReady = true;
+      if (videoStarted || usingFallback) return; videoStarted = true;
+      sceneEl.classList.add('ready');
       if (reduceMotion) { try { active.pause(); active.currentTime = Math.min(2, active.duration || 2); } catch (e) {} return; }
-      tryPlay(active);
+      playVid(active);
       scheduleCrossfade();
     };
     if (active.readyState >= 2) begin();
-    else { active.addEventListener('loadeddata', begin, { once: true }); active.load(); }
-    // safety: if loadeddata never fires (some mobile), try after a beat
-    setTimeout(() => { if (!videoReady && state !== 'off') begin(); }, 2500);
-    active.addEventListener('loadedmetadata', scheduleCrossfade, { once: true });
+    else { active.addEventListener('loadeddata', begin, { once: true }); try { active.load(); } catch (e) {} }
+    // Fallbacks: if nothing loads in time, show the still image so it's never blank.
+    setTimeout(() => { if (!videoStarted && !usingFallback) {
+      if (active.readyState >= 2) begin(); else fallbackToImage();
+    } }, 4000);
   }
-  function stopVideo() {
-    clearTimeout(xfTimer);
-    [vidA, vidB].forEach(v => { try { v.pause(); } catch (e) {} v.classList.remove('visible'); });
-  }
+  function stopVideo() { clearTimeout(xfTimer); [vidA, vidB].forEach(v => { try { v.pause(); } catch (e) {} }); }
 
-  /* ---- Audio: Pocket Card iOS unlock pattern ---- */
-  let unlocked = false;
+  // Re-pick source on theme change.
+  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => {
+    if (usingFallback) { sceneEl.classList.toggle('fallback', true); return; }
+    videoStarted = false; stopVideo(); startVideo();
+  });
+  // Pause/resume video with tab visibility (save battery), but it stays "on".
+  document.addEventListener('visibilitychange', () => {
+    if (usingFallback) return;
+    if (document.hidden) stopVideo();
+    else { playVid(active); scheduleCrossfade(); }
+  });
+
+  /* ---- Audio: ON by default, armed on first gesture (rain-view unlock) ---- */
+  let soundOn = true;             // default ON
+  let audioArmed = false, audioStarted = false;
   const silent = new Audio('data:audio/mpeg;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgP////////////////////////////////////////8AAAAATGFtZTMuMTAwA8MAAAAAAAAAABRgJAZAQgAAYAAAAnGMHkkIAAAAAAD/+xDEAAPH3Yz0AAR8I+rJf/AABImb9n+f4/8MACgYvgIAGJDv+xLCC1h7IHvQfeBh+IgDhQBWCAeUdUMABOJpz/9Y4V8mL/V///pvw4DUEgUv0ALAAAAWrCDKFQFIFgAUKWDZKEUqgD6iAAAhCQkBhERgMAEgAg0CFAwh');
   silent.playsInline = true; silent.volume = 0.01;
-  function unlockAudio() { if (unlocked) return; unlocked = true; try { silent.currentTime = 0; silent.play().catch(() => {}); } catch (e) {} }
+
   let fadeId = 0;
   function fadeAudio(target, ms) {
     const myId = ++fadeId, start = waves.volume, t = performance.now();
@@ -120,52 +130,52 @@
       else if (target === 0) { try { waves.pause(); } catch (e) {} }
     })(t);
   }
-  function startAudio() { unlockAudio(); waves.volume = 0; const p = waves.play(); if (p && p.catch) p.catch(() => {}); fadeAudio(0.5, 1200); }
-  function stopAudio() { fadeAudio(0, 600); }
-
-  /* ---- State machine ---- */
-  function apply(next, { fromUser } = {}) {
-    state = next;
-    btn.dataset.state = state;
-    btn.setAttribute('aria-label', 'Ambient beach: ' + LABELS[state]);
-    btn.setAttribute('aria-pressed', state === 'off' ? 'false' : 'true');
-    btn.title = 'Ambient: ' + LABELS[state] + ' (tap to change)';
-    const on = state !== 'off';
-    document.body.classList.toggle('scene-on', on);
-    if (on && !document.hidden) startVideo(); else stopVideo();
-    if (state === 'sound' && fromUser) startAudio();
-    else if (state !== 'sound') stopAudio();
-    try { STORE.setMeta('ambient', state); } catch (e) {}
+  function reallyStartAudio() {
+    if (audioStarted) return;
+    try { silent.currentTime = 0; silent.play().catch(() => {}); } catch (e) {}
+    if (!waves) return;
+    waves.volume = 0;
+    const p = waves.play();
+    if (p && p.catch) p.catch(() => {});
+    audioStarted = true;
+    fadeAudio(0.5, 1400);
+  }
+  // Arm: the first interaction anywhere starts sound if it's enabled.
+  function armAudio() {
+    if (audioArmed) return; audioArmed = true;
+    const go = () => { if (soundOn && !audioStarted) reallyStartAudio(); };
+    ['pointerdown', 'touchend', 'keydown', 'click'].forEach(ev => document.addEventListener(ev, go, { once: true, passive: true }));
   }
 
-  btn.addEventListener('click', () => {
-    const i = STATES.indexOf(state);
-    apply(STATES[(i + 1) % STATES.length], { fromUser: true });
+  function applySoundUI() {
+    if (!btn) return;
+    btn.dataset.sound = soundOn ? 'on' : 'off';
+    btn.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
+    btn.setAttribute('aria-label', 'Ambient sound: ' + (soundOn ? 'on' : 'off'));
+    btn.title = soundOn ? 'Ambient sound: on (tap to mute)' : 'Ambient sound: off (tap to unmute)';
+  }
+
+  if (btn) btn.addEventListener('click', () => {
+    soundOn = !soundOn;
+    applySoundUI();
+    try { STORE.setMeta('sound', soundOn ? 'on' : 'off'); } catch (e) {}
+    if (soundOn) { if (!audioStarted) reallyStartAudio(); else { const p = waves.play(); if (p && p.catch) p.catch(() => {}); fadeAudio(0.5, 600); } }
+    else fadeAudio(0, 500);
   });
 
-  // Re-pick source when the theme flips while the scene is on.
-  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => {
-    if (state !== 'off') { stopVideo(); startVideo(); }
-  });
-
-  // Pause/resume with tab visibility.
+  // Resume audio after backgrounding if it should be on.
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { stopVideo(); if (state === 'sound') { try { waves.pause(); } catch (e) {} } }
-    else if (state !== 'off') { startVideo(); if (state === 'sound') { const p = waves.play(); if (p && p.catch) p.catch(() => {}); } }
+    if (!document.hidden && soundOn && audioStarted) { const p = waves.play(); if (p && p.catch) p.catch(() => {}); }
   });
 
-  /* ---- Restore saved state (first run defaults to 'scene') ---- */
+  /* ---- Boot ---- */
   (async () => {
+    // Restore sound preference (default on if never set).
     let saved = null;
-    try { saved = await STORE.getMeta('ambient'); } catch (e) {}
-    const initial = (saved === undefined || saved === null) ? 'scene' : saved;
-    if (initial === 'sound') {
-      apply('sound');                              // visuals + remembered intent
-      const arm = () => { if (state === 'sound') startAudio(); };
-      ['pointerdown', 'keydown', 'touchend'].forEach(e => document.addEventListener(e, arm, { once: true, passive: true }));
-    } else if (initial === 'scene') {
-      apply('scene');
-    }
-    // 'off' → nothing
+    try { saved = await STORE.getMeta('sound'); } catch (e) {}
+    soundOn = (saved === 'off') ? false : true;
+    applySoundUI();
+    startVideo();         // always
+    armAudio();           // sound begins on first interaction if enabled
   })();
 })();

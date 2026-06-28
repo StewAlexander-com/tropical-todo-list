@@ -314,9 +314,9 @@ body.scrolled .poster-title { font-size: clamp(18px, 5vw, 22px); letter-spacing:
    Two stacked <video> elements; JS crossfades B in before A's loop seam so the
    loop is invisible. Color-graded for a calm, filmic look. Off/on via .scene-on.
    ============================================================ */
+/* Scene (video beach) is ALWAYS on — it fades in once ready. */
 .scene { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; opacity: 0; transition: opacity 1s ease; }
-body.scene-on .scene { opacity: 1; }
-body:not(.scene-on) .scene { display: none; }
+.scene.ready { opacity: 1; }
 
 .scene-vid {
   position: absolute; inset: 0; width: 100%; height: 100%;
@@ -345,18 +345,46 @@ body:not(.scene-on) .scene { display: none; }
     color-mix(in srgb, var(--bg) 74%, transparent) 50%,
     color-mix(in srgb, var(--bg) 60%, transparent) 100%); } }
 
-/* Per-row plates: when scene is on, give rows a subtle translucent backing so
-   text never sits directly on bright water. */
-body.scene-on .task { background: color-mix(in srgb, var(--surface) 34%, transparent); border-radius: var(--radius-sm); }
-body.scene-on .task:hover, body.scene-on .task.sel { background: color-mix(in srgb, var(--surface) 82%, transparent); }
-body.scene-on .bucket-head span:first-child { text-shadow: 0 1px 8px var(--bg); }
+/* Lava-rock panel: when the scene is on, the task region sits on a translucent
+   dark blue-grey wash (“lava rock”) so the white text reads clearly against the
+   bright beach. Low opacity keeps the beach visible; a soft blur lifts contrast. */
+:root { --lava: 16 22 32; }            /* dark blue-grey, as R G B */
+body.scene-on .list-panel {
+  /* Solid-enough dark “lava rock” so white text always reads (no reliance on
+     backdrop-filter, which composites unreliably over bright video). A faint
+     gradient gives it depth; the beach still shows above, around, and below. */
+  background:
+    linear-gradient(180deg, rgba(22,29,41,.93) 0%, rgba(14,19,28,.95) 100%);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 16px;
+  box-shadow: 0 8px 34px rgba(0,0,0,.34);
+  padding: 8px 12px 16px;
+}
+/* Only show the panel once there's content to frame; keep empty-state framed too. */
+body.scene-on .list-panel:has(.bucket),
+body.scene-on .list-panel:has(.empty) { min-height: 80px; }
+/* On the lava panel, text flips to light for contrast (both themes). */
+body.scene-on .list-panel .task-title { color: #f1f3f6; }
+body.scene-on .list-panel .task.done .task-title { color: rgba(241,243,246,.5); }
+body.scene-on .list-panel .due { color: rgba(226,232,240,.82); }
+body.scene-on .list-panel .bucket-head span:first-child { color: rgba(226,232,240,.72); }
+body.scene-on .list-panel .bucket.overdue .bucket-head span:first-child { color: #e8a08f; }
+body.scene-on .list-panel .bucket-head .count { color: rgba(226,232,240,.55); }
+body.scene-on .list-panel .rule { background: rgba(255,255,255,.1); }
+body.scene-on .list-panel .empty h3 { color: rgba(241,243,246,.92); }
+body.scene-on .list-panel .empty p, body.scene-on .list-panel .empty { color: rgba(226,232,240,.7); }
+body.scene-on .list-panel .empty .ring { border-color: rgba(255,255,255,.22); color: rgba(226,232,240,.6); }
+body.scene-on .list-panel .task:hover { background: rgba(255,255,255,.06); }
+body.scene-on .list-panel .task.sel { background: rgba(255,255,255,.09); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+body.scene-on .list-panel .check { border-color: rgba(255,255,255,.32); background: rgba(255,255,255,.06); }
+body.scene-on .list-panel .check:checked { background: var(--accent); border-color: var(--accent); }
 
 /* Ambient toggle button: show the icon matching its state */
-.ambient-btn .am-off, .ambient-btn .am-scene, .ambient-btn .am-sound { display: none; }
-.ambient-btn[data-state="off"] .am-off { display: block; }
-.ambient-btn[data-state="scene"] .am-scene { display: block; color: var(--accent); }
-.ambient-btn[data-state="sound"] .am-sound { display: block; color: var(--accent); }
-.ambient-btn[data-state="scene"], .ambient-btn[data-state="sound"] { border-color: var(--accent); }
+/* Sound toggle: show the icon matching on/off; accent border when on. */
+.ambient-btn .snd-on, .ambient-btn .snd-off { display: none; }
+.ambient-btn[data-sound="on"] .snd-on { display: block; color: var(--accent); }
+.ambient-btn[data-sound="off"] .snd-off { display: block; }
+.ambient-btn[data-sound="on"] { border-color: var(--accent); }
 
 @media (prefers-reduced-motion: reduce) {
   .sheen, .frond-sway { animation: none !important; }
@@ -398,16 +426,17 @@ body.scene-on .bucket-head span:first-child { text-shadow: 0 1px 8px var(--bg); 
       <button class="iconbtn" id="btnHelp" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
       </button>
-      <button class="iconbtn ambient-btn" id="btnAmbient" data-state="off" title="Ambient beach" aria-label="Ambient beach: off">
-        <svg class="am-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18c1.5 1.2 3 1.2 4.5 0S10.5 16.8 12 18s3 1.2 4.5 0S19.5 16.8 21 18"/><path d="M3 21c1.5 1.2 3 1.2 4.5 0S10.5 19.8 12 21"/><path d="M12 13V8"/><path d="M12 8c-2-2-5-2-7 0M12 8c2-2 5-2 7 0M12 8c-1-2.5-1-5 0-6"/></svg>
-        <svg class="am-scene" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18c1.5 1.2 3 1.2 4.5 0S10.5 16.8 12 18s3 1.2 4.5 0S19.5 16.8 21 18"/><path d="M3 21c1.5 1.2 3 1.2 4.5 0S10.5 19.8 12 21"/><path d="M12 13V8"/><path d="M12 8c-2-2-5-2-7 0M12 8c2-2 5-2 7 0M12 8c-1-2.5-1-5 0-6"/><line x1="17" y1="4" x2="21" y2="8"/><line x1="21" y1="4" x2="17" y2="8"/></svg>
-        <svg class="am-sound" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18c1.5 1.2 3 1.2 4.5 0S10.5 16.8 12 18s3 1.2 4.5 0S19.5 16.8 21 18"/><path d="M3 21c1.5 1.2 3 1.2 4.5 0S10.5 19.8 12 21"/><path d="M12 13V8"/><path d="M12 8c-2-2-5-2-7 0M12 8c2-2 5-2 7 0M12 8c-1-2.5-1-5 0-6"/><path d="M16.5 6.5a4 4 0 0 1 0 5" opacity=".9"/><path d="M18.5 4.5a7 7 0 0 1 0 9" opacity=".55"/></svg>
+      <button class="iconbtn ambient-btn" id="btnAmbient" data-sound="on" title="Ambient sound" aria-label="Ambient sound: on" aria-pressed="true">
+        <!-- sound ON: speaker with waves -->
+        <svg class="snd-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12" opacity=".6"/></svg>
+        <!-- sound OFF: muted speaker -->
+        <svg class="snd-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
       </button>
     </div>
 
     <!-- Poster masthead -->
     <div class="poster">
-      <div class="eyebrow"><span class="rule"></span>Proudly Present<span class="rule"></span></div>
+      <div class="eyebrow"><span class="rule"></span>Welcome To<span class="rule"></span></div>
       <h1 class="poster-title">Tropical&nbsp;ToDos</h1>
       <span class="dot sr" id="hdrCount"></span>
       <div class="tagline"><span class="dash">&mdash;</span><span class="script">a calm list for unhurried days</span><span class="dash">&mdash;</span></div>
@@ -427,9 +456,10 @@ body.scene-on .bucket-head span:first-child { text-shadow: 0 1px 8px var(--bg); 
   </div>
   <div class="hint" id="hint"></div>
 
-  <div class="activefilter" id="activeFilter"></div>
-
-  <main id="list" aria-live="polite"></main>
+  <div class="list-panel">
+    <div class="activefilter" id="activeFilter"></div>
+    <main id="list" aria-live="polite"></main>
+  </div>
 </div>
 
 <div class="statusbar">
