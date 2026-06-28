@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2aa7b8"/>
+      <stop offset="55%" stop-color="#5fd0d6"/>
+      <stop offset="100%" stop-color="#bff0ea"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffd87a"/>
+      <stop offset="100%" stop-color="#f0a93a"/>
+    </linearGradient>
+    <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fbf3df"/>
+      <stop offset="100%" stop-color="#f2e6c8"/>
+    </linearGradient>
+  </defs>
+  <!-- rounded tile -->
+  <rect width="512" height="512" rx="112" fill="url(#sky)"/>
+  <!-- sun -->
+  <circle cx="346" cy="150" r="64" fill="url(#sun)"/>
+  <!-- sea band -->
+  <path d="M0 300 H512 V392 H0 Z" fill="#1f8aa6" opacity=".55"/>
+  <!-- white sand / shore curve -->
+  <path d="M0 360 C 140 330, 360 420, 512 360 L512 512 L0 512 Z" fill="url(#sand)"/>
+  <!-- foam line -->
+  <path d="M0 360 C 140 330, 360 420, 512 360" fill="none" stroke="#ffffff" stroke-width="10" opacity=".85" stroke-linecap="round"/>
+  <!-- palm trunk -->
+  <path d="M150 360 C 142 300, 150 250, 168 214" fill="none" stroke="#7a5a33" stroke-width="14" stroke-linecap="round"/>
+  <!-- palm fronds -->
+  <g stroke="#2f7d3e" stroke-width="13" stroke-linecap="round" fill="none">
+    <path d="M168 210 C 110 196, 70 206, 44 236"/>
+    <path d="M168 210 C 120 168, 86 150, 50 150"/>
+    <path d="M168 210 C 150 156, 152 120, 176 92"/>
+    <path d="M168 210 C 220 168, 262 158, 300 168"/>
+    <path d="M168 210 C 228 200, 276 214, 306 244"/>
+  </g>
+  <g stroke="#3f9a4f" stroke-width="7" stroke-linecap="round" fill="none" opacity=".9">
+    <path d="M168 210 C 116 200, 82 210, 58 236"/>
+    <path d="M168 210 C 126 174, 96 158, 62 156"/>
+    <path d="M168 210 C 154 160, 158 128, 180 102"/>
+    <path d="M168 210 C 216 176, 254 166, 290 174"/>
+    <path d="M168 210 C 224 204, 268 218, 296 244"/>
+  </g>
+  <!-- coconuts -->
+  <circle cx="160" cy="220" r="9" fill="#6b4a28"/>
+  <circle cx="178" cy="224" r="8" fill="#6b4a28"/>
+</svg>

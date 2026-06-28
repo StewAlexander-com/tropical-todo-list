@@ -1,11 +1,12 @@
 /* Quiet service worker — offline-first app shell.
  * Bumps cache version on each release so updates land. App data lives in
  * IndexedDB (not the cache), so clearing caches never touches your tasks. */
-const CACHE = 'quiet-v12';
+const CACHE = 'quiet-v13';
 /* Note: videos are intentionally NOT precached (large); they stream and are
    runtime-cached on first play by the fetch handler below. */
 const SHELL = ['./', './index.html', './app.js', './ambient.js', './manifest.webmanifest',
-  './assets/waves.mp3', './assets/beach-poster.jpg', './assets/beach-poster-dusk.jpg'];
+  './assets/waves.mp3', './assets/beach-poster.jpg', './assets/beach-poster-dusk.jpg',
+  './icons/icon-192.png', './icons/icon-512.png', './icons/favicon-32.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
