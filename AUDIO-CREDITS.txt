@@ -1,0 +1,14 @@
+Quiet — audio credits
+=====================
+
+Ocean waves ambience (assets/waves.mp3)
+----------------------------------------
+Procedurally synthesized in this repository (see _build/make_waves.py) — layered
+filtered noise shaped by a slow swell envelope, crossfaded into a seamless ~23s
+loop. Original work, no third-party samples. Free to reuse (CC0).
+
+Animation pattern
+-----------------
+The audio unlock + start-muted + visibility-resume pattern is adapted from the
+author's own Pocket Card project (github.com/StewAlexander-com/pocket-card),
+itself derived from the Rain View pattern.

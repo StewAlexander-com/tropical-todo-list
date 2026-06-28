@@ -29,3 +29,19 @@ To serve from a project subpath, the relative paths and `start_url: "."` already
 - `app.js` — Store, parser, bucketing, fuzzy search, keyboard, backup, confetti
 - `sw.js` — offline app-shell cache (bump `CACHE` to ship updates)
 - `manifest.webmanifest` — install metadata
+
+## Ambient beach (optional)
+
+A calm, stylized beach can sit behind the list — palm fronds, a turquoise lagoon, drifting sun-sheen, and a gentle shore-foam wash that breathes. Tap the wave icon in the header to cycle three states:
+
+1. **Off** — the clean default.
+2. **Scene** — visuals only.
+3. **Scene + waves** — adds a looping ocean-surf sound (`assets/waves.mp3`).
+
+Details:
+- **Off by default.** Your choice is remembered on the device (in IndexedDB meta).
+- **No autoplay.** Per browser rules, the wave sound starts only after you tap — when restored from a saved session it arms on your first interaction.
+- **Stylized, not a photo** — pure CSS/SVG + a low-res canvas foam layer. Tiny, offline, zero photo assets. The foam wash and the audio ride the same slow swell so sight and sound rise and fall together.
+- **Light & dusk palettes** follow your system light/dark preference.
+- **Respectful of the machine** — animation pauses when the tab is hidden, and `prefers-reduced-motion` renders a still scene with no animation loop.
+- **Legibility preserved** — a graduated frosted scrim keeps task text well above WCAG AA contrast over the brightest part of the scene.

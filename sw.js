@@ -1,8 +1,8 @@
 /* Quiet service worker — offline-first app shell.
  * Bumps cache version on each release so updates land. App data lives in
  * IndexedDB (not the cache), so clearing caches never touches your tasks. */
-const CACHE = 'quiet-v2';
-const SHELL = ['./', './index.html', './app.js', './manifest.webmanifest'];
+const CACHE = 'quiet-v3';
+const SHELL = ['./', './index.html', './app.js', './ambient.js', './manifest.webmanifest', './assets/waves.mp3'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
