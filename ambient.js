@@ -191,15 +191,19 @@
    * user's remembered choice and visuals), then start the actual audio on the first
    * interaction. This avoids a button that lies about being on while silent. */
   (async () => {
-    let saved = 'off';
-    try { saved = (await STORE.getMeta('ambient')) || 'off'; } catch (e) {}
-    if (saved === 'sound') {
+    // First run (no saved choice) defaults to 'scene' so the tropical backdrop is
+    // visible immediately. A saved 'off' is respected. Audio never autoplays.
+    let saved = null;
+    try { saved = await STORE.getMeta('ambient'); } catch (e) {}
+    const initial = (saved === undefined || saved === null) ? 'scene' : saved;
+    if (initial === 'sound') {
       apply('sound');                  // shows scene + 'sound' icon; audio armed below
       const arm = () => { if (state === 'sound') startAudio(); };
       const onceOpts = { once: true, passive: true };
       ['pointerdown', 'keydown', 'touchend'].forEach(e => document.addEventListener(e, arm, onceOpts));
-    } else if (saved === 'scene') {
+    } else if (initial === 'scene') {
       apply('scene');
     }
+    // initial === 'off' → leave everything off
   })();
 })();
