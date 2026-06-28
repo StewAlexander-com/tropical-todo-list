@@ -275,6 +275,11 @@ body:not(.scene-on) .scene { display: none; }
   /* gentle filmic grade so it reads as a cohesive backdrop, not raw footage */
   filter: saturate(1.04) contrast(1.03) brightness(1.0);
 }
+/* Poster fallback: if video can't autoplay/decode, the beach photo still shows
+   (the <video poster> covers the element until/unless frames render). A CSS
+   background on the scene guarantees a beach even if the element is empty. */
+.scene { background: url('assets/beach-poster.jpg') center top / cover no-repeat; }
+@media (prefers-color-scheme: dark) { .scene { background-image: url('assets/beach-poster-dusk.jpg'); } }
 .scene-vid-b { opacity: 0; transition: opacity 1.1s ease; z-index: 1; }
 .scene-vid-b.visible { opacity: 1; }
 

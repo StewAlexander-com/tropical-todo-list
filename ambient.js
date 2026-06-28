@@ -52,7 +52,7 @@
     if (state === 'off') return;
     // bring the idle video to the start, play, fade it in; swap roles
     try { idle.currentTime = 0; } catch (e) {}
-    const p = idle.play(); if (p && p.catch) p.catch(() => {});
+    tryPlay(idle);
     idle.classList.add('visible');
     active.classList.remove('visible');
     const wasActive = active;
@@ -60,6 +60,25 @@
     // after the fade, reset the now-idle (old active) so it's ready next cycle
     setTimeout(() => { try { wasActive.pause(); wasActive.currentTime = 0; } catch (e) {} }, XF * 1000 + 50);
     scheduleCrossfade();
+  }
+
+  // If the browser blocks muted autoplay (some Safari/Low-Power configs), retry
+  // the play on the very first user interaction so the video never stays frozen.
+  let gestureArmed = false;
+  function armGestureRetry() {
+    if (gestureArmed) return; gestureArmed = true;
+    const go = () => {
+      [vidA, vidB].forEach(v => { v.muted = true; });
+      const p = active.play(); if (p && p.catch) p.catch(() => {});
+    };
+    ['pointerdown', 'touchend', 'keydown', 'click'].forEach(ev =>
+      document.addEventListener(ev, go, { once: true, passive: true }));
+  }
+
+  function tryPlay(v) {
+    v.muted = true; v.defaultMuted = true; v.playsInline = true; // belt + suspenders for autoplay
+    const p = v.play();
+    if (p && p.catch) p.catch(() => { armGestureRetry(); });
   }
 
   function startVideo() {
@@ -70,12 +89,13 @@
     const begin = () => {
       videoReady = true;
       if (reduceMotion) { try { active.pause(); active.currentTime = Math.min(2, active.duration || 2); } catch (e) {} return; }
-      const p = active.play(); if (p && p.catch) p.catch(() => {});
+      tryPlay(active);
       scheduleCrossfade();
     };
     if (active.readyState >= 2) begin();
-    else active.addEventListener('loadeddata', begin, { once: true });
-    // keep the loop timer honest if metadata loads late
+    else { active.addEventListener('loadeddata', begin, { once: true }); active.load(); }
+    // safety: if loadeddata never fires (some mobile), try after a beat
+    setTimeout(() => { if (!videoReady && state !== 'off') begin(); }, 2500);
     active.addEventListener('loadedmetadata', scheduleCrossfade, { once: true });
   }
   function stopVideo() {

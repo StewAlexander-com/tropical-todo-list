@@ -1,7 +1,7 @@
 /* Quiet service worker — offline-first app shell.
  * Bumps cache version on each release so updates land. App data lives in
  * IndexedDB (not the cache), so clearing caches never touches your tasks. */
-const CACHE = 'quiet-v7';
+const CACHE = 'quiet-v8';
 /* Note: videos are intentionally NOT precached (large); they stream and are
    runtime-cached on first play by the fetch handler below. */
 const SHELL = ['./', './index.html', './app.js', './ambient.js', './manifest.webmanifest',
