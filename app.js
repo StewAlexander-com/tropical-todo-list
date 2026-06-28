@@ -48,10 +48,31 @@ const STORE = Store; // swap point for a future EncryptedStore
  * Natural-language parser — dates + #tags from one line
  * ============================================================ */
 const Parse = (() => {
-  const DAYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
-  const DAY_ABBR = { sun:0, mon:1, tue:2, tues:2, wed:3, weds:3, thu:4, thur:4, thurs:5-1, fri:5, sat:6 };
-  DAY_ABBR.thu = 4; DAY_ABBR.thurs = 4; DAY_ABBR.thur = 4;
-  const MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  // Each weekday maps to its full set of accepted exact spellings (abbr + full).
+  // Longer forms listed first so the alternation prefers e.g. "tuesday" over "tue".
+  const DAY_SPELLINGS = [
+    ['sunday','sun'],
+    ['monday','mon'],
+    ['tuesday','tues','tue'],
+    ['wednesday','weds','wed'],
+    ['thursday','thurs','thur','thu'],
+    ['friday','fri'],
+    ['saturday','sat'],
+  ];
+  const DAY_LOOKUP = {};
+  DAY_SPELLINGS.forEach((forms, i) => forms.forEach(f => DAY_LOOKUP[f] = i));
+  // Build alternation with longest spellings first across all days.
+  const DAY_FORMS = DAY_SPELLINGS.flat().sort((a,b)=>b.length-a.length).join('|');
+
+  const MONTH_SPELLINGS = [
+    ['january','jan'],['february','feb'],['march','mar'],['april','apr'],['may'],
+    ['june','jun'],['july','jul'],['august','aug'],['september','sept','sep'],
+    ['october','oct'],['november','nov'],['december','dec'],
+  ];
+  const MONTH_LOOKUP = {};
+  MONTH_SPELLINGS.forEach((forms, i) => forms.forEach(f => MONTH_LOOKUP[f] = i));
+  const MONTH_FORMS = MONTH_SPELLINGS.flat().sort((a,b)=>b.length-a.length).join('|');
+
   const startOfDay = d => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
 
   function applyTime(date, h, m, pm) {
@@ -97,19 +118,17 @@ const Parse = (() => {
       [/\bthis weekend\b/i, () => { const d=new Date(now); d.setDate(d.getDate()+((6-d.getDay()+7)%7||6)); set(d); }],
       [/\btonight\b/i, () => { set(now); if(th==null){th=20;tm=0;hasTime=true;} }],
       [/\bin (\d{1,3}) (day|days|week|weeks|month|months)\b/i, (m,n,u)=>{ const d=new Date(now); n=+n; if(/day/.test(u))d.setDate(d.getDate()+n); else if(/week/.test(u))d.setDate(d.getDate()+n*7); else d.setMonth(d.getMonth()+n); set(d); }],
-      [/\bnext (mon|tue|tues|wed|weds|thu|thur|thurs|fri|sat|sun)[a-z]*\b/i, (m,dn)=>{ const t=DAY_ABBR[dn.toLowerCase()]; const d=new Date(now); let diff=(t-d.getDay()+7)%7; diff=diff===0?7:diff; diff+=7; d.setDate(d.getDate()+diff); set(d); }],
-      [/\b(mon|tue|tues|wed|weds|thu|thur|thurs|fri|sat|sun)[a-z]*\b/i, (m,dn)=>{ const t=DAY_ABBR[dn.toLowerCase()]; if(t==null)return; const d=new Date(now); let diff=(t-d.getDay()+7)%7; if(diff===0)diff=7; d.setDate(d.getDate()+diff); set(d); }],
-      // "jun 30", "june 30", "30 jun"
-      [new RegExp('\\b('+MONTHS.join('|')+')[a-z]*\\.?\\s+(\\d{1,2})\\b','i'), (m,mon,day)=>{ const mi=MONTHS.indexOf(mon.slice(0,3).toLowerCase()); const d=new Date(now.getFullYear(),mi,+day); if(d<startOfDay(now))d.setFullYear(d.getFullYear()+1); set(d); }],
-      [new RegExp('\\b(\\d{1,2})\\s+('+MONTHS.join('|')+')[a-z]*\\b','i'), (m,day,mon)=>{ const mi=MONTHS.indexOf(mon.slice(0,3).toLowerCase()); const d=new Date(now.getFullYear(),mi,+day); if(d<startOfDay(now))d.setFullYear(d.getFullYear()+1); set(d); }],
+      // Weekdays: ONLY exact abbreviations or full names (no open [a-z]* tail that
+      // would let "satisfy"->sat, "monitor"->mon, "wedding"->wed, etc.)
+      [new RegExp('\\bnext\\s+('+DAY_FORMS+')\\b','i'), (m,dn)=>{ const t=DAY_LOOKUP[dn.toLowerCase()]; const d=new Date(now); let diff=(t-d.getDay()+7)%7; diff=diff===0?7:diff; diff+=7; d.setDate(d.getDate()+diff); set(d); }],
+      [new RegExp('\\b('+DAY_FORMS+')\\b','i'), (m,dn)=>{ const t=DAY_LOOKUP[dn.toLowerCase()]; if(t==null)return; const d=new Date(now); let diff=(t-d.getDay()+7)%7; if(diff===0)diff=7; d.setDate(d.getDate()+diff); set(d); }],
+      // Months: ONLY exact abbreviations or full month names. "jun 30", "june 30", "30 jun"
+      [new RegExp('\\b('+MONTH_FORMS+')\\.?\\s+(\\d{1,2})\\b','i'), (m,mon,day)=>{ const mi=MONTH_LOOKUP[mon.toLowerCase()]; const d=new Date(now.getFullYear(),mi,+day); if(d<startOfDay(now))d.setFullYear(d.getFullYear()+1); set(d); }],
+      [new RegExp('\\b(\\d{1,2})\\s+('+MONTH_FORMS+')\\b','i'), (m,day,mon)=>{ const mi=MONTH_LOOKUP[mon.toLowerCase()]; const d=new Date(now.getFullYear(),mi,+day); if(d<startOfDay(now))d.setFullYear(d.getFullYear()+1); set(d); }],
     ];
     for (const [re, fn] of tests) {
       const m = text.match(re);
       if (m) { fn(...m); matched.push(m[0].trim()); text = text.replace(re, ' '); break; }
-    }
-    // weekday-only inside the loop handled; also handle full day names not caught by abbr
-    if (!due) {
-      for (let i=0;i<DAYS.length;i++){ const re=new RegExp('\\b'+DAYS[i]+'\\b','i'); if(re.test(text)){ const d=new Date(now); let diff=(i-d.getDay()+7)%7; if(diff===0)diff=7; d.setDate(d.getDate()+diff); set(d); matched.push(DAYS[i]); text=text.replace(re,' '); break; } }
     }
 
     if (due && hasTime) applyTime(due, th, tm, tpm);
@@ -362,10 +381,17 @@ function paintSel() {
 /* ============================================================
  * Mutations
  * ============================================================ */
+// Title fallback: never echo raw (which re-inserts #tags / date words). If the
+// parse consumed everything, use a neutral placeholder so tag-only/date-only
+// adds don't show literal "#work" or "tomorrow 3pm" as the title.
+function cleanTitle(parsed) {
+  const t = (parsed.title || '').trim();
+  return t || 'Untitled task';
+}
 async function addFromInput(raw) {
   raw = raw.trim(); if (!raw) return;
   const p = Parse.parse(raw);
-  const t = { id: uid(), title: p.title || raw, raw, tags: p.tags, due: p.due, hasTime: p.hasTime, done: false, created: Date.now() };
+  const t = { id: uid(), title: cleanTitle(p), raw, tags: p.tags, due: p.due, hasTime: p.hasTime, done: false, created: Date.now() };
   tasks.push(t);
   await STORE.put(t);
   $('#add').value = ''; updateHint('');
@@ -382,20 +408,30 @@ function startEdit(id) { editingId = id; render(); }
 async function commitEdit(id, raw) {
   const t = tasks.find(x => x.id === id); if (!t) { editingId = null; return render(); }
   raw = raw.trim();
-  if (!raw) { editingId = null; return removeTask(id); }
+  if (!raw) { editingId = null; return removeTask(id, { label: 'Removed empty task' }); }
   const p = Parse.parse(raw);
-  t.title = p.title || raw; t.raw = raw; t.tags = p.tags; t.due = p.due; t.hasTime = p.hasTime;
+  t.title = cleanTitle(p); t.raw = raw; t.tags = p.tags; t.due = p.due; t.hasTime = p.hasTime;
   editingId = null;
   await STORE.put(t); render(); afterChange();
 }
-async function removeTask(id) {
+// Undo stack — each delete is independently recoverable, so rapid deletes
+// don't clobber one another (audit finding 1c).
+const undoStack = [];
+async function removeTask(id, opts = {}) {
   const idx = tasks.findIndex(x => x.id === id); if (idx < 0) return;
   const [removed] = tasks.splice(idx, 1);
   await STORE.del(id);
+  undoStack.push(removed);
   render(); afterChange();
-  toast('Task deleted', 'Undo', async () => {
-    tasks.push(removed); await STORE.put(removed); render(); afterChange();
-  });
+  const n = undoStack.length;
+  const label = opts.label || 'Task deleted';
+  toast(n > 1 ? `${label} · ${n} to undo` : label, 'Undo', undoLast);
+}
+async function undoLast() {
+  const t = undoStack.pop(); if (!t) return;
+  tasks.push(t); await STORE.put(t); render(); afterChange();
+  if (undoStack.length) toast(`Restored · ${undoStack.length} more to undo`, 'Undo', undoLast);
+  else toast('Restored', null);
 }
 
 /* ============================================================
@@ -579,15 +615,36 @@ function updateHint(raw) {
 /* ============================================================
  * Sheets / modals
  * ============================================================ */
+let lastFocus = null;
+function sheetOpen() { return !!document.querySelector('.sheet.on'); }
 function openSheet(id) {
+  lastFocus = document.activeElement;
   $('#scrim').classList.add('on');
   const s = $('#' + id); s.classList.add('on'); s.setAttribute('aria-hidden','false');
   if (id === 'backupSheet') refreshBackupUI();
+  // move focus into the sheet for a11y
+  const first = s.querySelector('button, [href], input, select, textarea');
+  requestAnimationFrame(() => { (first || s).focus(); });
 }
 function closeSheets() {
   $('#scrim').classList.remove('on');
   document.querySelectorAll('.sheet.on').forEach(s => { s.classList.remove('on'); s.setAttribute('aria-hidden','true'); });
   $('#bkStatus').className = 'statusline'; $('#bkStatus').textContent = '';
+  // restore focus to the control that opened the sheet
+  if (lastFocus && document.contains(lastFocus)) { try { lastFocus.focus(); } catch {} }
+  lastFocus = null;
+}
+// Focus trap: keep Tab inside the open sheet.
+function trapFocus(e) {
+  if (e.key !== 'Tab') return;
+  const s = document.querySelector('.sheet.on'); if (!s) return;
+  const f = [...s.querySelectorAll('button, [href], input:not([type=file]), select, textarea, [tabindex]:not([tabindex="-1"])')]
+    .filter(n => n.offsetParent !== null);
+  if (!f.length) return;
+  const first = f[0], last = f[f.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  else if (!s.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
 }
 function refreshBackupUI() {
   const g = $('#fsaGroup');
@@ -616,6 +673,9 @@ document.addEventListener('keydown', e => {
     if (document.activeElement === $('#search') || document.activeElement === $('#add')) document.activeElement.blur();
     return;
   }
+  // When a sheet is open, only the focus trap runs — app shortcuts must not
+  // leak through to the list behind the modal (audit finding 3d).
+  if (sheetOpen()) { trapFocus(e); return; }
   if (isTyping(e)) return; // don't hijack typing
   if (e.metaKey || e.ctrlKey || e.altKey) return;
 
@@ -659,13 +719,20 @@ function wire() {
   $('#bkImport').onclick = () => $('#bkFile').click();
   $('#bkFile').onchange = e => {
     const f = e.target.files[0]; if (!f) return;
-    const mode = confirm('Replace all current tasks with this backup?\n\nOK = Replace everything\nCancel = Merge into current tasks') ? 'replace' : 'merge';
+    e.target.value = '';
+    // Safe default: OK = Merge (non-destructive). Replace is opt-in and needs a
+    // second confirmation, since it discards current tasks (audit finding 4d).
+    const wantMerge = confirm('Add tasks from this backup?\n\nOK = Merge (keep current tasks + add)\nCancel = Replace everything instead');
+    let mode = 'merge';
+    if (!wantMerge) {
+      if (!confirm('Replace ALL current tasks with this backup?\n\nYour current tasks will be discarded. Consider exporting a snapshot first.')) return;
+      mode = 'replace';
+    }
     Backup.importFile(f, mode, (err, n) => {
-      if (err) { status('Could not read that file — ' + err.message, 'err'); return; }
+      if (err) { status('Could not read that file — ' + err.message + '. Your tasks are unchanged.', 'err'); return; }
       render(); afterChange();
       status(`${mode === 'replace' ? 'Replaced' : 'Merged'} — ${n} task${n!==1?'s':''} loaded.`, 'ok');
     });
-    e.target.value = '';
   };
   $('#bkFolder').onclick = async () => {
     try { await Backup.chooseFolder(); refreshBackupUI(); status('Auto-backup on. First snapshot written.', 'ok'); }
@@ -673,8 +740,11 @@ function wire() {
   };
   $('#bkFolderOff').onclick = async () => { await Backup.forgetFolder(); refreshBackupUI(); status('Auto-backup turned off.', 'ok'); };
   $('#bkClear').onclick = async () => {
-    if (!confirm('Delete ALL tasks on this device? This cannot be undone.')) return;
-    await STORE.clear(); tasks = []; sel = -1; render(); status('All tasks cleared.', 'ok');
+    if (!tasks.length) { status('Nothing to clear.', ''); return; }
+    if (!confirm(`Delete ALL ${tasks.length} task${tasks.length!==1?'s':''} on this device?\n\nThis cannot be undone. A snapshot will be downloaded first as a safety net.`)) return;
+    Backup.download(); // safety snapshot before destruction
+    await STORE.clear(); tasks = []; sel = -1; undoStack.length = 0; render();
+    status('All tasks cleared. A safety snapshot was downloaded.', 'ok');
   };
 }
 function status(msg, kind) { const s = $('#bkStatus'); s.className = 'statusline ' + (kind||''); s.textContent = msg; }

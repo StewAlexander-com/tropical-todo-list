@@ -20,8 +20,8 @@
   --line: #e7e7e3;
   --line-soft: #efefec;
   --text: #1a1c20;
-  --text-2: #5d6168;
-  --text-faint: #9a9ea6;
+  --text-2: #585c63;
+  --text-faint: #767b83;
   --accent: #2f7d86;
   --accent-soft: #e3f0f1;
   --danger: #b5483a;
@@ -41,8 +41,8 @@
     --line: #272b34;
     --line-soft: #20242c;
     --text: #e8e9ec;
-    --text-2: #a4a9b3;
-    --text-faint: #6a7079;
+    --text-2: #b0b5bf;
+    --text-faint: #888e98;
     --accent: #7fb7be;
     --accent-soft: #18272a;
     --danger: #d97a6c;
@@ -146,10 +146,12 @@ header {
 .task:hover { background: var(--surface); }
 .task.sel { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
 .task.sel::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2.5px; border-radius: 2px; background: var(--accent); }
+/* Visual box is 19px but the hit area is padded to >=24px (WCAG 2.5.5). */
 .check {
   appearance: none; flex: none; width: 19px; height: 19px; margin-top: 1px; border: 1.8px solid var(--line);
   border-radius: 6px; cursor: pointer; transition: all .15s ease; position: relative; background: var(--surface);
 }
+.check::before { content: ""; position: absolute; inset: -6px; border-radius: 10px; }
 .check:hover { border-color: var(--accent); }
 .check:checked { background: var(--accent); border-color: var(--accent); }
 .check:checked::after {
@@ -171,7 +173,9 @@ header {
 .due.late { color: var(--danger); }
 .due.soon { color: var(--warn); }
 .row-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .12s ease; flex: none; }
-.task:hover .row-actions, .task.sel .row-actions { opacity: 1; }
+.task:hover .row-actions, .task.sel .row-actions, .task:focus-within .row-actions { opacity: 1; }
+/* Touch devices have no hover — always show actions so edit/delete are reachable. */
+@media (hover: none) { .row-actions { opacity: 1; } }
 .row-actions button {
   appearance: none; border: none; background: none; color: var(--text-faint); width: 28px; height: 28px;
   border-radius: 6px; display: grid; place-items: center; cursor: pointer; transition: all .12s ease;
@@ -250,9 +254,17 @@ header {
 .toast { position: fixed; bottom: 64px; left: 50%; transform: translate(-50%, 16px); z-index: 50; opacity: 0; pointer-events: none;
   background: var(--text); color: var(--bg); font-size: 13px; font-weight: 500; padding: 9px 16px; border-radius: 99px; box-shadow: var(--shadow);
   transition: all .22s cubic-bezier(.22,1,.36,1); display: flex; align-items: center; gap: 12px; }
-.toast.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
-.toast button { appearance: none; border: none; background: none; color: var(--accent); font: inherit; font-weight: 650; cursor: pointer; }
+/* Toast itself stays pointer-events:none so it never blocks clicks on content
+   beneath it; only its button is interactive (audit finding 1g). */
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+.toast button { appearance: none; border: none; background: none; color: var(--accent); font: inherit; font-weight: 650; cursor: pointer; pointer-events: auto; }
 @media (prefers-color-scheme: dark) { .toast button { color: var(--accent); } }
+
+/* Consistent, visible keyboard focus ring everywhere (audit finding 5e). */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.check:focus-visible { outline-offset: 3px; }
+.task:focus-visible { outline-offset: -2px; }
+:focus:not(:focus-visible) { outline: none; }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
