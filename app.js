@@ -769,6 +769,21 @@ async function boot() {
 }
 boot();
 
+// Collapse the poster masthead to a slim bar once the user scrolls past a small
+// threshold (keeps the grand first impression without burying the task list).
+(function () {
+  let ticking = false;
+  const onScroll = () => {
+    if (ticking) return; ticking = true;
+    requestAnimationFrame(() => {
+      document.body.classList.toggle('scrolled', window.scrollY > 28);
+      ticking = false;
+    });
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+})();
+
 // register service worker for offline
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));

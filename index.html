@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)" />
 <meta name="theme-color" content="#fbfbfa" media="(prefers-color-scheme: light)" />
-<meta name="description" content="Quiet — a calm, local-first todo list. Private by design, offline-first, zero network." />
-<title>Quiet</title>
+<meta name="description" content="Tropical ToDos — a calm, local-first todo list with a cinematic beach backdrop. Private by design, offline-first, zero network." />
+<title>Tropical ToDos</title>
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650&family=Geist+Mono:wght@400;500&family=Oswald:wght@300;400;500;600&family=Pinyon+Script&display=swap" rel="stylesheet" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f1115'/%3E%3Ccircle cx='16' cy='16' r='6' fill='none' stroke='%237fb7be' stroke-width='2.5'/%3E%3C/svg%3E" />
 <style>
 :root {
@@ -31,6 +31,11 @@
   --shadow: 0 1px 2px rgba(20,22,26,.04), 0 4px 16px rgba(20,22,26,.04);
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --mono: 'Geist Mono', ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+  --display: 'Oswald', 'Inter', sans-serif;
+  --script: 'Pinyon Script', 'Snell Roundhand', cursive;
+  /* Warm gold accent for masthead flourishes ONLY (interactive stays teal). */
+  --gold: #a87f2e;
+  --gold-soft: #cba35a;
   --maxw: 720px;
 }
 @media (prefers-color-scheme: dark) {
@@ -47,6 +52,8 @@
     --accent-soft: #18272a;
     --danger: #d97a6c;
     --warn: #d6a85a;
+    --gold: #d8b66a;
+    --gold-soft: #e3c884;
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 20px rgba(0,0,0,.25);
   }
 }
@@ -64,20 +71,15 @@ body {
 }
 .app { max-width: var(--maxw); margin: 0 auto; padding: 0 20px 120px; }
 
-/* ---- Header ---- */
+/* ---- Poster masthead ---- */
 header {
   position: sticky; top: 0; z-index: 20;
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: saturate(160%) blur(12px);
-  -webkit-backdrop-filter: saturate(160%) blur(12px);
-  padding: 18px 0 12px;
-  margin-bottom: 4px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: saturate(150%) blur(12px);
+  -webkit-backdrop-filter: saturate(150%) blur(12px);
+  padding: 18px 0 14px; margin-bottom: 4px;
+  transition: padding .3s ease;
 }
-.bar { display: flex; align-items: center; gap: 12px; }
-.brand { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; }
-.brand svg { flex: none; }
-.brand h1 { font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
-.brand .dot { font-size: 11px; color: var(--text-faint); font-weight: 500; }
 .iconbtn {
   appearance: none; border: 1px solid var(--line); background: var(--surface);
   color: var(--text-2); width: 34px; height: 34px; border-radius: var(--radius-sm);
@@ -91,6 +93,53 @@ header {
   white-space: nowrap;
 }
 .privacy svg { width: 12px; height: 12px; color: var(--accent); }
+
+/* Control cluster: top-right, quiet until hovered */
+.controls { position: absolute; top: 16px; right: 0; display: flex; align-items: center; gap: 8px; z-index: 2; opacity: .62; transition: opacity .2s ease; }
+.controls:hover, .controls:focus-within { opacity: 1; }
+@media (max-width: 460px) { .controls .privacy { display: none; } }
+
+/* The poster block */
+.poster { text-align: center; padding: 14px 56px 4px; transition: all .3s ease; }
+.eyebrow {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .34em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 12px; padding-left: .34em; white-space: nowrap;
+}
+.eyebrow .rule { height: 1px; width: clamp(24px, 14%, 70px); background: linear-gradient(90deg, transparent, var(--gold-soft)); opacity: .8; }
+.eyebrow .rule:last-child { background: linear-gradient(90deg, var(--gold-soft), transparent); }
+.poster-title {
+  font-family: var(--display); font-weight: 500; text-transform: uppercase;
+  font-size: clamp(28px, 8.5vw, 58px); line-height: .96; letter-spacing: .015em;
+  color: var(--text); margin: 0; position: relative; white-space: nowrap;
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--bg) 60%, transparent), 0 2px 18px color-mix(in srgb, var(--bg) 80%, transparent);
+}
+.poster-title .dot { font-family: var(--font); font-size: 11px; font-weight: 500; color: var(--text-faint); letter-spacing: 0; text-transform: none; vertical-align: super; margin-left: 6px; text-shadow: none; }
+.tagline { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 8px; color: var(--gold); }
+.tagline .dash { font-size: 14px; opacity: .65; }
+.tagline .script { font-family: var(--script); font-size: clamp(19px, 5vw, 25px); line-height: 1.1; color: var(--gold); white-space: nowrap; }
+
+/* Mobile: full-width poster, controls sit above it so the title has room. */
+@media (max-width: 560px) {
+  .poster { padding: 6px 8px 4px; }
+  header { padding-top: 52px; }
+  .controls { top: 14px; right: 0; }
+  .tagline .dash { display: none; }
+}
+@media (max-width: 360px) {
+  .tagline .script { font-size: 17px; white-space: normal; }
+}
+@media (prefers-color-scheme: dark) {
+  .poster-title { text-shadow: 0 1px 2px rgba(0,0,0,.5), 0 2px 22px rgba(0,0,0,.6); }
+}
+
+/* Collapse-on-scroll: when body has .scrolled, the poster shrinks to a slim bar. */
+body.scrolled header { padding: 10px 0 10px; }
+body.scrolled .poster { padding: 0 56px; }
+body.scrolled .eyebrow, body.scrolled .tagline { opacity: 0; max-height: 0; margin: 0; overflow: hidden; pointer-events: none; }
+body.scrolled .poster-title { font-size: clamp(18px, 5vw, 22px); letter-spacing: .04em; }
+.eyebrow, .tagline { transition: opacity .25s ease, max-height .3s ease, margin .3s ease; max-height: 40px; }
+.poster-title { transition: font-size .3s ease, letter-spacing .3s ease; }
 
 /* ---- Search ---- */
 .search { position: relative; margin-top: 12px; }
@@ -336,13 +385,9 @@ body.scene-on .bucket-head span:first-child { text-shadow: 0 1px 8px var(--bg); 
 </audio>
 
 <div class="app">
-  <header>
-    <div class="bar">
-      <div class="brand">
-        <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--text)"/><circle cx="16" cy="16" r="6" fill="none" stroke="var(--accent)" stroke-width="2.5"/></svg>
-        <h1>Quiet</h1>
-        <span class="dot" id="hdrCount"></span>
-      </div>
+  <header id="masthead">
+    <!-- Quiet control cluster, top-right — recedes until hover -->
+    <div class="controls">
       <span class="privacy" title="All data lives only in this browser. No network, no account.">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         Local only
@@ -354,14 +399,20 @@ body.scene-on .bucket-head span:first-child { text-shadow: 0 1px 8px var(--bg); 
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
       </button>
       <button class="iconbtn ambient-btn" id="btnAmbient" data-state="off" title="Ambient beach" aria-label="Ambient beach: off">
-        <!-- off: palm/wave outline -->
         <svg class="am-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18c1.5 1.2 3 1.2 4.5 0S10.5 16.8 12 18s3 1.2 4.5 0S19.5 16.8 21 18"/><path d="M3 21c1.5 1.2 3 1.2 4.5 0S10.5 19.8 12 21"/><path d="M12 13V8"/><path d="M12 8c-2-2-5-2-7 0M12 8c2-2 5-2 7 0M12 8c-1-2.5-1-5 0-6"/></svg>
-        <!-- scene on, sound off -->
         <svg class="am-scene" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18c1.5 1.2 3 1.2 4.5 0S10.5 16.8 12 18s3 1.2 4.5 0S19.5 16.8 21 18"/><path d="M3 21c1.5 1.2 3 1.2 4.5 0S10.5 19.8 12 21"/><path d="M12 13V8"/><path d="M12 8c-2-2-5-2-7 0M12 8c2-2 5-2 7 0M12 8c-1-2.5-1-5 0-6"/><line x1="17" y1="4" x2="21" y2="8"/><line x1="21" y1="4" x2="17" y2="8"/></svg>
-        <!-- scene + sound on -->
         <svg class="am-sound" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18c1.5 1.2 3 1.2 4.5 0S10.5 16.8 12 18s3 1.2 4.5 0S19.5 16.8 21 18"/><path d="M3 21c1.5 1.2 3 1.2 4.5 0S10.5 19.8 12 21"/><path d="M12 13V8"/><path d="M12 8c-2-2-5-2-7 0M12 8c2-2 5-2 7 0M12 8c-1-2.5-1-5 0-6"/><path d="M16.5 6.5a4 4 0 0 1 0 5" opacity=".9"/><path d="M18.5 4.5a7 7 0 0 1 0 9" opacity=".55"/></svg>
       </button>
     </div>
+
+    <!-- Poster masthead -->
+    <div class="poster">
+      <div class="eyebrow"><span class="rule"></span>Proudly Present<span class="rule"></span></div>
+      <h1 class="poster-title">Tropical&nbsp;ToDos</h1>
+      <span class="dot sr" id="hdrCount"></span>
+      <div class="tagline"><span class="dash">&mdash;</span><span class="script">a calm list for unhurried days</span><span class="dash">&mdash;</span></div>
+    </div>
+
     <div class="search">
       <svg class="s-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
       <input id="search" type="text" placeholder="Search tasks, #tags, notes…" autocomplete="off" spellcheck="false" aria-label="Search" />

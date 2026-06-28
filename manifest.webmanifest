@@ -1,6 +1,6 @@
 {
-  "name": "Quiet — Local Todos",
-  "short_name": "Quiet",
+  "name": "Tropical ToDos",
+  "short_name": "Tropical",
   "description": "A calm, local-first todo list. Private by design, offline-first, zero network.",
   "start_url": ".",
   "scope": ".",
