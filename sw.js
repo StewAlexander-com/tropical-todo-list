@@ -1,7 +1,7 @@
 /* Quiet service worker — offline-first app shell.
  * Bumps cache version on each release so updates land. App data lives in
  * IndexedDB (not the cache), so clearing caches never touches your tasks. */
-const CACHE = 'quiet-v6';
+const CACHE = 'quiet-v7';
 /* Note: videos are intentionally NOT precached (large); they stream and are
    runtime-cached on first play by the fetch handler below. */
 const SHELL = ['./', './index.html', './app.js', './ambient.js', './manifest.webmanifest',
@@ -23,6 +23,11 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return; // never touch cross-origin (there shouldn't be any)
+
+  // Range requests (video seeking) return 206 responses, which the Cache API
+  // refuses to store. Let video stream straight from the network and don't try
+  // to cache it — the poster image covers the offline first-paint.
+  if (req.headers.has('range') || /\.mp4$/.test(url.pathname)) return;
 
   // Network-first for the HTML document so updates show; fall back to cache offline.
   if (req.mode === 'navigate' || req.destination === 'document') {
