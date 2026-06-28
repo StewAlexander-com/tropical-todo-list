@@ -261,66 +261,84 @@ header {
 @media (prefers-color-scheme: dark) { .toast button { color: var(--accent); } }
 
 /* ============================================================
-   Ambient beach scene — stylized CSS/SVG, off by default.
-   Hidden entirely unless body has .scene-on (set by JS).
+   Ambient beach scene — PHOTO-REAL + animated. Off/on via body.scene-on.
+   Layers (back→front): photo base · caustics (water) · sheen · palm-sway
+   slice · foam canvas · graduated scrim.
    ============================================================ */
-.scene { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; opacity: 0; transition: opacity .9s ease; }
+.scene { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; opacity: 0; transition: opacity 1s ease; }
 body.scene-on .scene { opacity: 1; }
 body:not(.scene-on) .scene { display: none; }
 
-/* Light (day) palette */
-.scene {
-  --sky-top: #9fd9ee; --sky-bot: #cfeef2;
-  --sea-far: #1683a0; --sea-near: #5fcfd8; --sea-shallow: #a7ece8;
-  --sand-col: #f0e4cc; --foam-col: #ffffff;
-  --frond-col: #5f9233; --sheen-col: rgba(255,255,255,.6);
+/* The real photograph, covering the viewport. A second slice (.palm) carries the
+   top of the SAME image, masked to the fronds, so only the palms sway. */
+.photo, .palm {
+  position: absolute; inset: 0; background-image: url('assets/beach.jpg');
+  background-size: cover; background-position: center top;
 }
-@media (prefers-color-scheme: dark) {
-  /* Dusk / moonlit palette */
-  .scene {
-    --sky-top: #0d1830; --sky-bot: #20384f; --sea-far: #0a2740; --sea-near: #12506a;
-    --sea-shallow: #1d6b7e; --sand-col: #243240; --foam-col: #cfe6ec;
-    --frond-col: #2f4a4f; --sheen-col: rgba(180,220,235,.22);
-  }
-}
-.sky { position: absolute; inset: 0; background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bot) 42%, transparent 60%); }
-.sea {
-  position: absolute; left: -5%; right: -5%; top: 44%; bottom: 26%;
-  background: linear-gradient(180deg, var(--sea-far) 0%, var(--sea-near) 55%, var(--sea-shallow) 100%);
-  background-size: 100% 100%;
-}
-/* moving water sheen: drifting blurred highlights */
-.sheen { position: absolute; border-radius: 50%; filter: blur(28px); background: radial-gradient(circle, var(--sheen-col) 0%, transparent 70%); mix-blend-mode: screen; }
-.sheen-a { width: 60vw; height: 22vh; left: 10%; top: 50%; animation: drift-a 26s ease-in-out infinite; }
-.sheen-b { width: 45vw; height: 16vh; right: 5%; top: 58%; animation: drift-b 34s ease-in-out infinite; }
-@keyframes drift-a { 0%,100%{ transform: translate(-4%,0) scale(1); opacity:.5 } 50%{ transform: translate(8%,-6%) scale(1.1); opacity:.8 } }
-@keyframes drift-b { 0%,100%{ transform: translate(3%,2%) scale(1.05); opacity:.4 } 50%{ transform: translate(-6%,-4%) scale(.95); opacity:.7 } }
-.foam { position: absolute; left: 0; right: 0; top: 60%; height: 22%; width: 100%; }
-.sand { position: absolute; left: 0; right: 0; bottom: 0; top: 74%;
-  background: linear-gradient(180deg, transparent 0%, var(--sand-col) 30%, var(--sand-col) 100%); }
+@media (prefers-color-scheme: dark) { .photo, .palm { background-image: url('assets/beach-dusk.jpg'); } }
+.photo { z-index: 0; }
 
-/* Palm fronds */
-.frond { position: absolute; top: -10px; width: clamp(180px, 32vw, 340px); height: auto; color: var(--frond-col); opacity: .9; }
-.frond-l { left: -20px; transform-origin: top left; }
-.frond-r { right: -20px; transform-origin: top right; }
-.frond .leaflets line { stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
-.frond-sway { transform-origin: 50% 0; animation: sway 9s ease-in-out infinite; }
-.frond-r .frond-sway { animation-duration: 11s; animation-direction: alternate-reverse; }
-@keyframes sway { 0%,100%{ transform: rotate(-1.2deg) } 50%{ transform: rotate(1.6deg) } }
+/* Living water: caustics net, blended (screen) and masked to the lagoon band.
+   Two layers drift at different speeds + breathe so it never looks like a loop. */
+.caustics {
+  position: absolute; left: -20%; right: -20%; top: 42%; height: 34%; z-index: 1;
+  background-image: url('assets/caustics.png'); background-size: 360px 360px; background-repeat: repeat;
+  mix-blend-mode: screen; opacity: .5;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 22%, #000 70%, transparent);
+          mask-image: linear-gradient(180deg, transparent, #000 22%, #000 70%, transparent);
+  animation: caustics-a 24s linear infinite, caustics-breathe 9s ease-in-out infinite;
+}
+.caustics.b {
+  background-size: 520px 520px; opacity: .32; top: 48%; height: 30%;
+  animation: caustics-b 38s linear infinite, caustics-breathe 13s ease-in-out infinite reverse;
+}
+@media (prefers-color-scheme: dark) { .caustics { opacity: .3; } .caustics.b { opacity: .18; } }
+@keyframes caustics-a { from { background-position: 0 0; } to { background-position: 360px 140px; } }
+@keyframes caustics-b { from { background-position: 0 0; } to { background-position: -520px 180px; } }
+@keyframes caustics-breathe { 0%,100%{ filter: brightness(.85) } 50%{ filter: brightness(1.3) } }
 
-/* Frosted scrim keeps task text at full contrast over the scene. The app's own
-   content sits on translucent surfaces, so the readable zone (top ~60%) gets a
-   denser veil while the lower scene (sea+foam+sand) shows through more. */
-.scene-scrim { position: absolute; inset: 0;
+/* Specular sheen: soft drifting highlights on the water surface */
+.sheen { position: absolute; border-radius: 50%; filter: blur(34px); z-index: 2;
+  background: radial-gradient(circle, rgba(255,255,255,.5) 0%, transparent 70%); mix-blend-mode: screen; }
+.sheen-a { width: 55vw; height: 16vh; left: 8%; top: 50%; animation: drift-a 28s ease-in-out infinite; }
+.sheen-b { width: 40vw; height: 12vh; right: 4%; top: 60%; animation: drift-b 36s ease-in-out infinite; }
+@media (prefers-color-scheme: dark) { .sheen { background: radial-gradient(circle, rgba(180,220,235,.28) 0%, transparent 70%); } }
+@keyframes drift-a { 0%,100%{ transform: translate(-3%,0) scale(1); opacity:.45 } 50%{ transform: translate(7%,-5%) scale(1.1); opacity:.75 } }
+@keyframes drift-b { 0%,100%{ transform: translate(2%,2%) scale(1.05); opacity:.35 } 50%{ transform: translate(-5%,-3%) scale(.95); opacity:.6 } }
+
+/* Palm slice: top of the photo, masked to the frond region, sways from the top. */
+.palm { z-index: 3;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 30%, transparent 46%);
+          mask-image: linear-gradient(180deg, #000 0%, #000 30%, transparent 46%);
+  transform-origin: 50% 0; animation: palm-sway 8s ease-in-out infinite;
+}
+@keyframes palm-sway {
+  0%,100% { transform: rotate(-0.5deg) skewX(-0.4deg); }
+  50%     { transform: rotate(0.7deg)  skewX(0.5deg); }
+}
+
+/* Foam canvas at the waterline */
+.foam { position: absolute; left: 0; right: 0; top: 62%; height: 24%; width: 100%; z-index: 4; }
+
+/* Graduated frosted scrim keeps task text readable. Denser in the dense-text zone
+   (top), lighter over the photographic lower scene. Per-row plates (below) add a
+   local backing so text stays crisp even over the bright lagoon. */
+.scene-scrim { position: absolute; inset: 0; z-index: 5;
   background: linear-gradient(180deg,
-    color-mix(in srgb, var(--bg) 88%, transparent) 0%,
-    color-mix(in srgb, var(--bg) 82%, transparent) 55%,
-    color-mix(in srgb, var(--bg) 70%, transparent) 100%);
-  backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
+    color-mix(in srgb, var(--bg) 82%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 74%, transparent) 50%,
+    color-mix(in srgb, var(--bg) 60%, transparent) 100%);
+  backdrop-filter: blur(.5px); -webkit-backdrop-filter: blur(.5px); }
 @media (prefers-color-scheme: dark) { .scene-scrim { background: linear-gradient(180deg,
-    color-mix(in srgb, var(--bg) 90%, transparent) 0%,
-    color-mix(in srgb, var(--bg) 85%, transparent) 55%,
-    color-mix(in srgb, var(--bg) 74%, transparent) 100%); } }
+    color-mix(in srgb, var(--bg) 86%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 78%, transparent) 50%,
+    color-mix(in srgb, var(--bg) 66%, transparent) 100%); } }
+
+/* Per-row plates: when the scene is on, give task rows + the add bar a subtle
+   translucent backing so text never sits directly on bright water. */
+body.scene-on .task { background: color-mix(in srgb, var(--surface) 32%, transparent); border-radius: var(--radius-sm); }
+body.scene-on .task:hover, body.scene-on .task.sel { background: color-mix(in srgb, var(--surface) 80%, transparent); }
+body.scene-on .bucket-head span:first-child { text-shadow: 0 1px 8px var(--bg); }
 
 /* Ambient toggle button: show the icon matching its state */
 .ambient-btn .am-off, .ambient-btn .am-scene, .ambient-btn .am-sound { display: none; }
@@ -344,27 +362,15 @@ body:not(.scene-on) .scene { display: none; }
 </style>
 </head>
 <body>
-<!-- Ambient beach scene (off by default; pointer-events:none, behind everything) -->
+<!-- Ambient beach scene (photo-real + animated; pointer-events:none, behind everything) -->
 <div class="scene" id="scene" aria-hidden="true">
-  <div class="sky"></div>
-  <div class="sea"></div>
+  <div class="photo"></div>
+  <div class="caustics"></div>
+  <div class="caustics b"></div>
   <div class="sheen sheen-a"></div>
   <div class="sheen sheen-b"></div>
+  <div class="palm"></div>
   <canvas class="foam" id="foam"></canvas>
-  <div class="sand"></div>
-  <!-- Palm fronds, top corners -->
-  <svg class="frond frond-l" viewBox="0 0 300 220" fill="none" aria-hidden="true">
-    <g class="frond-sway">
-      <path class="stem" d="M-10 8 C 80 40, 150 90, 205 175" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
-      <g class="leaflets"></g>
-    </g>
-  </svg>
-  <svg class="frond frond-r" viewBox="0 0 300 220" fill="none" aria-hidden="true">
-    <g class="frond-sway">
-      <path class="stem" d="M310 8 C 220 40, 150 90, 95 175" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
-      <g class="leaflets"></g>
-    </g>
-  </svg>
   <div class="scene-scrim"></div>
 </div>
 <audio id="waves" loop preload="none" playsinline>

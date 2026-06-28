@@ -23,39 +23,10 @@
   const LABELS = { off: 'off', scene: 'scene only', sound: 'scene + waves' };
   let state = 'off';
 
-  /* ---- Build palm-frond leaflets along each stem (so we don't hand-author 60 lines) ---- */
-  function buildFronds() {
-    const specs = [
-      { sel: '.frond-l .leaflets', from: [-10, 8], to: [205, 175], side: 1 },
-      { sel: '.frond-r .leaflets', from: [310, 8], to: [95, 175], side: -1 },
-    ];
-    specs.forEach(({ sel, from, to, side }) => {
-      const g = document.querySelector(sel);
-      if (!g) return;
-      const n = 26;
-      for (let i = 1; i < n; i++) {
-        const f = i / n;
-        // point along a quadratic-ish curve from `from` toward `to`
-        const cx = from[0] + (to[0] - from[0]) * f;
-        const cy = from[1] + (to[1] - from[1]) * (f * f * 0.7 + f * 0.3);
-        // leaflet length tapers toward the tip
-        const len = 46 * (1 - f * 0.8) + 8;
-        // angle: fan outward, drooping more toward the tip
-        const baseAng = side > 0 ? 200 : 340;
-        const spread = 38 * Math.sin(f * Math.PI);
-        [-1, 1].forEach(dir => {
-          const ang = (baseAng + dir * (30 + spread)) * Math.PI / 180;
-          const x2 = cx + Math.cos(ang) * len;
-          const y2 = cy + Math.sin(ang) * len;
-          const ln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-          ln.setAttribute('x1', cx.toFixed(1)); ln.setAttribute('y1', cy.toFixed(1));
-          ln.setAttribute('x2', x2.toFixed(1)); ln.setAttribute('y2', y2.toFixed(1));
-          g.appendChild(ln);
-        });
-      }
-    });
+  /* Foam color tracks the theme (white surf by day, pale moonlit foam at dusk). */
+  function foamColor() {
+    return matchMedia('(prefers-color-scheme: dark)').matches ? '#cfe6ec' : '#ffffff';
   }
-  buildFronds();
 
   /* ---- Canvas foam wash, synced to a slow swell LFO ---- */
   let raf = 0, running = false, t0 = 0;
@@ -65,9 +36,6 @@
     const dpr = Math.min(devicePixelRatio || 1, 1.5);
     canvas.width = Math.max(1, Math.floor(r.width * dpr));
     canvas.height = Math.max(1, Math.floor(r.height * dpr));
-  }
-  function foamColor() {
-    return getComputedStyle(sceneEl).getPropertyValue('--foam-col').trim() || '#fff';
   }
   function drawFoam(now) {
     const ctx = canvas.getContext('2d');
