@@ -294,15 +294,51 @@ const ICON = {
 
 function esc(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+// Searchable date words for a task: relative label, weekday (long+short),
+// month (long+short), day, year, and bucket name. Lets the user find a task by
+// typing "friday", "december", "dec 25", "2026", "tomorrow", "overdue", etc.
+// Built once per render pass and cached on the task object (invalidated by due).
+function dateTokens(t) {
+  if (t.due == null) return 'someday';
+  if (t._dtKey === t.due && t._dt) return t._dt;
+  const d = new Date(t.due);
+  const L = (o) => d.toLocaleDateString(undefined, o).toLowerCase();
+  const parts = [
+    L({ weekday: 'long' }), L({ weekday: 'short' }),
+    L({ month: 'long' }),   L({ month: 'short' }),
+    String(d.getDate()), String(d.getFullYear()),
+    Dates.relLabel(t.due, false).toLowerCase(),     // today / tomorrow / mon / jun 30
+    Dates.bucketOf(t.due),                            // overdue/today/week/later/someday
+  ];
+  if (Dates.bucketOf(t.due) === 'week') parts.push('this week');
+  if (Dates.urgency(t.due) === 'late') parts.push('overdue', 'late');
+  const s = parts.join(' ');
+  try { Object.defineProperty(t, '_dt', { value: s, enumerable: false, configurable: true });
+        Object.defineProperty(t, '_dtKey', { value: t.due, enumerable: false, configurable: true }); } catch(_) {}
+  return s;
+}
+// A date match is a word-prefix hit (e.g. "dec" -> "december"), not a loose
+// subsequence — keeps date search precise and avoids polluting text results.
+function dateMatch(query, t) {
+  const q = query.trim().toLowerCase();
+  if (!q) return false;
+  const toks = dateTokens(t);
+  // each whitespace-separated query word must prefix-match some date token
+  return q.split(/\s+/).every(w => new RegExp('(^|\\s)' + w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).test(toks));
+}
+
 function matches(t) {
   if (tagFilter && !t.tags.includes(tagFilter)) return false;
   if (!query) return true;
   const hay = t.title + ' ' + t.tags.map(x => '#' + x).join(' ') + ' ' + (t.notes || '');
-  return fuzzy(query, hay) > -1;
+  return fuzzy(query, hay) > -1 || dateMatch(query, t);
 }
 function searchScore(t) {
   const hay = t.title + ' ' + t.tags.map(x => '#' + x).join(' ');
-  return fuzzy(query, hay);
+  const textScore = fuzzy(query, hay);
+  // Date hits rank just under strong text hits but clearly above weak ones.
+  const dateScore = dateMatch(query, t) ? 30 : -1;
+  return Math.max(textScore, dateScore);
 }
 
 function render() {
