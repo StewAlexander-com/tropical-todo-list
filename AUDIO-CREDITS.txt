@@ -1,22 +1,19 @@
 Quiet — asset credits
 =====================
 
+Cinematic beach video (assets/beach-*.mp4, assets/beach-poster*.jpg)
+--------------------------------------------------------------------
+AI-generated with Veo (image-to-video) from the repository owner's own beach
+photograph as the starting frame. Day and dusk color grades produced with ffmpeg.
+The seamless loop is achieved at runtime via a dual-video crossfade (rain-view
+pattern). Ensure you hold rights to the source photo before publishing.
+
 Ocean waves ambience (assets/waves.mp3)
 ----------------------------------------
-Procedurally synthesized in this repository (see _build/make_waves.py). Original
-work, no third-party samples. Free to reuse (CC0).
+Procedurally synthesized in this repository (see _build/make_waves.py). CC0.
 
-Water caustics texture (assets/caustics.png)
----------------------------------------------
-Procedurally generated, seamless tiling (see _build/make_caustics.py). CC0.
-
-Beach photograph (assets/beach.jpg, assets/beach-dusk.jpg)
-----------------------------------------------------------
-Provided by the repository owner. The dusk variant is a tinted/darkened
-derivative generated for dark mode. Ensure you hold rights to the source image
-before publishing.
-
-Animation/audio pattern
------------------------
-The audio unlock + start-muted + visibility-resume pattern is adapted from the
-author's own Pocket Card project (github.com/StewAlexander-com/pocket-card).
+Pattern credit
+--------------
+The dual-video crossfade loop and audio unlock / start-muted / visibility-resume
+patterns are adapted from the author's own projects rain-view and pocket-card
+(github.com/StewAlexander-com).

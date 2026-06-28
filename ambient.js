@@ -1,142 +1,120 @@
-/* Quiet — ambient beach scene + gentle wave sound.
- * Off by default. Three states cycle on tap:
- *   off    → clean Quiet, no scene, no sound
- *   scene  → stylized beach visuals only
- *   sound  → beach visuals + looping wave audio (waves.mp3)
- * State persists in Store.meta('ambient'). Audio never autoplays — it starts
- * only after a user gesture (the toggle tap), reusing the Pocket Card iOS unlock
- * pattern. The canvas foam wash breathes on the same slow swell as the audio LFO,
- * so sight and sound rise and fall together. RAF is gated on visible + enabled +
- * not-reduced-motion, so it idles at ~0% CPU when not needed.
- *
- * Depends on STORE (from app.js) being defined globally. Loads after app.js. */
+/* Quiet — ambient cinematic beach (dual crossfading video) + gentle wave sound.
+ * Off/on cycles: off → scene → sound (waves audio). First run defaults to 'scene'.
+ * Video pattern follows rain-view: two stacked <video>s; we fade B in shortly
+ * before A reaches its loop seam, so the loop is invisible (raw clips don't loop
+ * cleanly). Source is theme-aware (day / dusk) and resolution-aware (mobile/desktop).
+ * Audio never autoplays — starts only on a user gesture (Pocket Card unlock pattern).
+ * Depends on STORE (from app.js). Loads after app.js. */
 (function () {
   'use strict';
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const btn = document.getElementById('btnAmbient');
   const sceneEl = document.getElementById('scene');
   const waves = document.getElementById('waves');
-  const canvas = document.getElementById('foam');
-  if (!btn || !sceneEl || !canvas) return;
+  const vidA = document.getElementById('vidA');
+  const vidB = document.getElementById('vidB');
+  if (!btn || !sceneEl || !vidA || !vidB) return;
 
   const STATES = ['off', 'scene', 'sound'];
   const LABELS = { off: 'off', scene: 'scene only', sound: 'scene + waves' };
   let state = 'off';
+  let videoReady = false;
 
-  /* Foam color tracks the theme (white surf by day, pale moonlit foam at dusk). */
-  function foamColor() {
-    return matchMedia('(prefers-color-scheme: dark)').matches ? '#cfe6ec' : '#ffffff';
+  /* ---- Source selection (theme + size aware) ---- */
+  const isMobile = matchMedia('(max-width: 560px)').matches;
+  function srcFor(dark) {
+    const base = dark ? 'assets/beach-' : 'assets/beach-';
+    const size = isMobile ? 'mobile' : 'desktop';
+    return dark ? `assets/beach-${size}-dusk.mp4` : `assets/beach-${size}.mp4`;
+  }
+  function posterFor(dark) { return dark ? 'assets/beach-poster-dusk.jpg' : 'assets/beach-poster.jpg'; }
+  function isDark() { return matchMedia('(prefers-color-scheme: dark)').matches; }
+
+  function setSources() {
+    const src = srcFor(isDark());
+    const poster = posterFor(isDark());
+    [vidA, vidB].forEach(v => {
+      if (v.getAttribute('src') !== src) { v.setAttribute('src', src); v.setAttribute('poster', poster); v.load(); }
+    });
   }
 
-  /* ---- Canvas foam wash, synced to a slow swell LFO ---- */
-  let raf = 0, running = false, t0 = 0;
-  const SWELL_PERIOD = 8; // seconds per wave; matches the audio's gentle cadence
-  function sizeCanvas() {
-    const r = canvas.getBoundingClientRect();
-    const dpr = Math.min(devicePixelRatio || 1, 1.5);
-    canvas.width = Math.max(1, Math.floor(r.width * dpr));
-    canvas.height = Math.max(1, Math.floor(r.height * dpr));
+  /* ---- Seamless dual-video crossfade loop (rain-view pattern) ---- */
+  let active = vidA, idle = vidB;
+  let xfTimer = 0;
+  const XF = 1.1;            // crossfade seconds
+  function scheduleCrossfade() {
+    clearTimeout(xfTimer);
+    if (!active.duration || !isFinite(active.duration)) return;
+    const remaining = (active.duration - active.currentTime - XF) * 1000;
+    xfTimer = setTimeout(crossfade, Math.max(50, remaining));
   }
-  function drawFoam(now) {
-    const ctx = canvas.getContext('2d');
-    const w = canvas.width, h = canvas.height;
-    ctx.clearRect(0, 0, w, h);
-    const tt = (now - t0) / 1000;
-    // global swell 0..1 (the same breath the audio rides)
-    const swell = 0.5 + 0.5 * Math.sin((tt / SWELL_PERIOD) * Math.PI * 2 - Math.PI / 2);
-    const col = foamColor();
-    // The foam line: a soft wavy band whose vertical position advances with the swell.
-    const baseY = h * (0.55 - 0.32 * swell); // wash advances up the beach as the wave comes in
-    ctx.save();
-    // soft foam fill below the line
-    ctx.beginPath();
-    ctx.moveTo(0, h);
-    for (let x = 0; x <= w; x += Math.max(6, w / 80)) {
-      const ripple = Math.sin(x / w * Math.PI * 6 + tt * 1.1) * (h * 0.025)
-                   + Math.sin(x / w * Math.PI * 13 - tt * 0.7) * (h * 0.012);
-      ctx.lineTo(x, baseY + ripple);
-    }
-    ctx.lineTo(w, h); ctx.closePath();
-    const grad = ctx.createLinearGradient(0, baseY - h * 0.1, 0, h);
-    grad.addColorStop(0, hexA(col, 0));
-    grad.addColorStop(0.25, hexA(col, 0.55 * (0.5 + swell * 0.5)));
-    grad.addColorStop(1, hexA(col, 0.0));
-    ctx.fillStyle = grad; ctx.fill();
-    // bright crest line on the leading edge
-    ctx.beginPath();
-    for (let x = 0; x <= w; x += Math.max(5, w / 110)) {
-      const ripple = Math.sin(x / w * Math.PI * 6 + tt * 1.1) * (h * 0.025)
-                   + Math.sin(x / w * Math.PI * 13 - tt * 0.7) * (h * 0.012);
-      const y = baseY + ripple;
-      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = hexA(col, 0.5 + 0.4 * swell);
-    ctx.lineWidth = Math.max(1.5, h * 0.012);
-    ctx.stroke();
-    ctx.restore();
+  function crossfade() {
+    if (state === 'off') return;
+    // bring the idle video to the start, play, fade it in; swap roles
+    try { idle.currentTime = 0; } catch (e) {}
+    const p = idle.play(); if (p && p.catch) p.catch(() => {});
+    idle.classList.add('visible');
+    active.classList.remove('visible');
+    const wasActive = active;
+    [active, idle] = [idle, active];
+    // after the fade, reset the now-idle (old active) so it's ready next cycle
+    setTimeout(() => { try { wasActive.pause(); wasActive.currentTime = 0; } catch (e) {} }, XF * 1000 + 50);
+    scheduleCrossfade();
   }
-  function hexA(hex, a) {
-    hex = hex.replace('#', '');
-    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
-    const n = parseInt(hex, 16);
-    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a.toFixed(3)})`;
+
+  function startVideo() {
+    setSources();
+    // make A the visible base
+    vidA.classList.add('visible'); vidB.classList.remove('visible');
+    active = vidA; idle = vidB;
+    const begin = () => {
+      videoReady = true;
+      if (reduceMotion) { try { active.pause(); active.currentTime = Math.min(2, active.duration || 2); } catch (e) {} return; }
+      const p = active.play(); if (p && p.catch) p.catch(() => {});
+      scheduleCrossfade();
+    };
+    if (active.readyState >= 2) begin();
+    else active.addEventListener('loadeddata', begin, { once: true });
+    // keep the loop timer honest if metadata loads late
+    active.addEventListener('loadedmetadata', scheduleCrossfade, { once: true });
   }
-  function loop(now) {
-    if (!running) return;
-    drawFoam(now);
-    raf = requestAnimationFrame(loop);
+  function stopVideo() {
+    clearTimeout(xfTimer);
+    [vidA, vidB].forEach(v => { try { v.pause(); } catch (e) {} v.classList.remove('visible'); });
   }
-  function startAnim() {
-    if (running) return;
-    if (reduceMotion) { sizeCanvas(); // draw a single static frame
-      t0 = performance.now(); drawFoam(t0 + SWELL_PERIOD * 250); return; }
-    sizeCanvas(); running = true; t0 = performance.now(); raf = requestAnimationFrame(loop);
-  }
-  function stopAnim() { running = false; cancelAnimationFrame(raf); }
 
   /* ---- Audio: Pocket Card iOS unlock pattern ---- */
   let unlocked = false;
   const silent = new Audio('data:audio/mpeg;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgP////////////////////////////////////////8AAAAATGFtZTMuMTAwA8MAAAAAAAAAABRgJAZAQgAAYAAAAnGMHkkIAAAAAAD/+xDEAAPH3Yz0AAR8I+rJf/AABImb9n+f4/8MACgYvgIAGJDv+xLCC1h7IHvQfeBh+IgDhQBWCAeUdUMABOJpz/9Y4V8mL/V///pvw4DUEgUv0ALAAAAWrCDKFQFIFgAUKWDZKEUqgD6iAAAhCQkBhERgMAEgAg0CFAwh');
   silent.playsInline = true; silent.volume = 0.01;
-  function unlockAudio() {
-    if (unlocked) return; unlocked = true;
-    try { silent.currentTime = 0; silent.play().catch(() => {}); } catch (e) {}
-  }
+  function unlockAudio() { if (unlocked) return; unlocked = true; try { silent.currentTime = 0; silent.play().catch(() => {}); } catch (e) {} }
   let fadeId = 0;
   function fadeAudio(target, ms) {
-    const myId = ++fadeId;              // cancel any in-flight fade so they don't stack
-    const start = waves.volume, t = performance.now();
+    const myId = ++fadeId, start = waves.volume, t = performance.now();
     const clamp = v => Math.max(0, Math.min(1, v));
     (function step(now) {
-      if (myId !== fadeId) return;       // superseded by a newer fade
+      if (myId !== fadeId) return;
       const k = Math.min(1, (now - t) / ms);
       waves.volume = clamp(start + (target - start) * k);
       if (k < 1) requestAnimationFrame(step);
       else if (target === 0) { try { waves.pause(); } catch (e) {} }
     })(t);
   }
-  function startAudio() {
-    unlockAudio();
-    waves.volume = 0;
-    const p = waves.play();
-    if (p && p.catch) p.catch(() => {});
-    fadeAudio(0.5, 1200);
-  }
+  function startAudio() { unlockAudio(); waves.volume = 0; const p = waves.play(); if (p && p.catch) p.catch(() => {}); fadeAudio(0.5, 1200); }
   function stopAudio() { fadeAudio(0, 600); }
 
-  /* ---- State application ---- */
+  /* ---- State machine ---- */
   function apply(next, { fromUser } = {}) {
     state = next;
     btn.dataset.state = state;
     btn.setAttribute('aria-label', 'Ambient beach: ' + LABELS[state]);
     btn.setAttribute('aria-pressed', state === 'off' ? 'false' : 'true');
     btn.title = 'Ambient: ' + LABELS[state] + ' (tap to change)';
-    const sceneVisible = state !== 'off';
-    document.body.classList.toggle('scene-on', sceneVisible);
-    if (sceneVisible && !document.hidden) startAnim(); else stopAnim();
+    const on = state !== 'off';
+    document.body.classList.toggle('scene-on', on);
+    if (on && !document.hidden) startVideo(); else stopVideo();
     if (state === 'sound' && fromUser) startAudio();
     else if (state !== 'sound') stopAudio();
-    // persist (fire-and-forget)
     try { STORE.setMeta('ambient', state); } catch (e) {}
   }
 
@@ -145,33 +123,29 @@
     apply(STATES[(i + 1) % STATES.length], { fromUser: true });
   });
 
-  // Pause/resume with tab visibility (don't burn CPU or audio in the background).
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { stopAnim(); if (state === 'sound') { try { waves.pause(); } catch (e) {} } }
-    else if (state !== 'off') { startAnim(); if (state === 'sound') { const p = waves.play(); if (p && p.catch) p.catch(() => {}); } }
+  // Re-pick source when the theme flips while the scene is on.
+  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => {
+    if (state !== 'off') { stopVideo(); startVideo(); }
   });
 
-  let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (running || reduceMotion) { sizeCanvas(); if (reduceMotion) drawFoam(performance.now()); } }, 150); });
+  // Pause/resume with tab visibility.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { stopVideo(); if (state === 'sound') { try { waves.pause(); } catch (e) {} } }
+    else if (state !== 'off') { startVideo(); if (state === 'sound') { const p = waves.play(); if (p && p.catch) p.catch(() => {}); } }
+  });
 
-  /* ---- Restore saved state ----
-   * Visuals can restore immediately. Audio cannot autoplay without a user gesture,
-   * so if the saved state was 'sound' we show the button as 'sound' (honoring the
-   * user's remembered choice and visuals), then start the actual audio on the first
-   * interaction. This avoids a button that lies about being on while silent. */
+  /* ---- Restore saved state (first run defaults to 'scene') ---- */
   (async () => {
-    // First run (no saved choice) defaults to 'scene' so the tropical backdrop is
-    // visible immediately. A saved 'off' is respected. Audio never autoplays.
     let saved = null;
     try { saved = await STORE.getMeta('ambient'); } catch (e) {}
     const initial = (saved === undefined || saved === null) ? 'scene' : saved;
     if (initial === 'sound') {
-      apply('sound');                  // shows scene + 'sound' icon; audio armed below
+      apply('sound');                              // visuals + remembered intent
       const arm = () => { if (state === 'sound') startAudio(); };
-      const onceOpts = { once: true, passive: true };
-      ['pointerdown', 'keydown', 'touchend'].forEach(e => document.addEventListener(e, arm, onceOpts));
+      ['pointerdown', 'keydown', 'touchend'].forEach(e => document.addEventListener(e, arm, { once: true, passive: true }));
     } else if (initial === 'scene') {
       apply('scene');
     }
-    // initial === 'off' → leave everything off
+    // 'off' → nothing
   })();
 })();
