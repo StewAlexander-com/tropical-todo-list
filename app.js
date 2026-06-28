@@ -75,6 +75,29 @@ const Parse = (() => {
 
   const startOfDay = d => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
 
+  // Region preference for ambiguous numeric dates (e.g. 03/04/2026).
+  // US/Military-US default to month-first (MDY); everywhere else (EU/EMEA/APAC)
+  // defaults to day-first (DMY). Unambiguous formats ignore this entirely.
+  // Detected once from the browser locale; falls back to DMY (the global norm).
+  const MDY_LOCALES = /^(en-US|en-CA|en-PH|es-US|fil)/i;
+  const localeMonthFirst = (() => {
+    try { return MDY_LOCALES.test(navigator.language || ''); } catch (_) { return false; }
+  })();
+
+  // Expand a 2-digit year the way humans mean it: 00-68 -> 2000s, 69-99 -> 1900s
+  // (matches the POSIX/strptime convention). 3+ digit years pass through.
+  const fullYear = y => { y = +y; if (y >= 100) return y; return y <= 68 ? 2000 + y : 1900 + y; };
+  // Build a date from numeric Y/M/D, rolling undated past dates to next year only
+  // when the year was NOT explicitly given.
+  function ymd(year, monthIdx, day, yearGiven, now) {
+    if (monthIdx < 0 || monthIdx > 11 || day < 1 || day > 31) return null;
+    const d = new Date(year, monthIdx, day);
+    // reject overflow (e.g. Feb 30 -> Mar 2)
+    if (d.getMonth() !== monthIdx || d.getDate() !== day) return null;
+    if (!yearGiven && d < startOfDay(now)) d.setFullYear(d.getFullYear() + 1);
+    return d;
+  }
+
   function applyTime(date, h, m, pm) {
     if (h == null) return date;
     let hr = h % 24;
@@ -122,9 +145,39 @@ const Parse = (() => {
       // would let "satisfy"->sat, "monitor"->mon, "wedding"->wed, etc.)
       [new RegExp('\\bnext\\s+('+DAY_FORMS+')\\b','i'), (m,dn)=>{ const t=DAY_LOOKUP[dn.toLowerCase()]; const d=new Date(now); let diff=(t-d.getDay()+7)%7; diff=diff===0?7:diff; diff+=7; d.setDate(d.getDate()+diff); set(d); }],
       [new RegExp('\\b('+DAY_FORMS+')\\b','i'), (m,dn)=>{ const t=DAY_LOOKUP[dn.toLowerCase()]; if(t==null)return; const d=new Date(now); let diff=(t-d.getDay()+7)%7; if(diff===0)diff=7; d.setDate(d.getDate()+diff); set(d); }],
-      // Months: ONLY exact abbreviations or full month names. "jun 30", "june 30", "30 jun"
-      [new RegExp('\\b('+MONTH_FORMS+')\\.?\\s+(\\d{1,2})\\b','i'), (m,mon,day)=>{ const mi=MONTH_LOOKUP[mon.toLowerCase()]; const d=new Date(now.getFullYear(),mi,+day); if(d<startOfDay(now))d.setFullYear(d.getFullYear()+1); set(d); }],
-      [new RegExp('\\b(\\d{1,2})\\s+('+MONTH_FORMS+')\\b','i'), (m,day,mon)=>{ const mi=MONTH_LOOKUP[mon.toLowerCase()]; const d=new Date(now.getFullYear(),mi,+day); if(d<startOfDay(now))d.setFullYear(d.getFullYear()+1); set(d); }],
+      // ---- NUMERIC / INTERNATIONAL FORMATS (unambiguous ones first) ----
+      // ISO 8601 / military: 2026-03-04, 2026/03/04, 2026.03.04
+      [/\b(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\b/, (m,y,mo,da)=>{ const d=ymd(+y,+mo-1,+da,true,now); if(d)set(d); }],
+      // DD-MMM-YYYY / DD MMM YYYY military & EMEA/APAC: 04-MAR-2026, 4 Mar 26, 30 jun
+      [new RegExp('\\b(\\d{1,2})[-/ ]('+MONTH_FORMS+')\\.?(?:[-/ ](\\d{2,4}))?\\b','i'), (m,da,mon,y)=>{ const mi=MONTH_LOOKUP[mon.toLowerCase()]; const d=ymd(y!=null?fullYear(y):now.getFullYear(),mi,+da,y!=null,now); if(d)set(d); }],
+      // MMM-DD-YYYY (US military-ish): MAR-04-2026, Mar 4 26, june 30
+      [new RegExp('\\b('+MONTH_FORMS+')\\.?[-/ ](\\d{1,2})(?:[-/ ](\\d{2,4}))?\\b','i'), (m,mon,da,y)=>{ const mi=MONTH_LOOKUP[mon.toLowerCase()]; const d=ymd(y!=null?fullYear(y):now.getFullYear(),mi,+da,y!=null,now); if(d)set(d); }],
+      // All-numeric slash/dot/dash WITH a year: 03/04/2026, 4.3.26, 12-25-2026.
+      // A year is REQUIRED here so everyday text ("buy 2-3 apples", "section 1.2",
+      // "3/4 cup") is never mistaken for a date. Disambiguate D vs M by value,
+      // then fall back to locale (US=MDY, rest=DMY).
+      [/\b(\d{1,2})([-/.])(\d{1,2})\2(\d{2,4})\b/, (m,a,sep,b,y)=>{
+        a=+a; b=+b;
+        let monthIdx, day;
+        if (a>12 && b<=12) { day=a; monthIdx=b-1; }            // first >12 -> day (DMY)
+        else if (b>12 && a<=12) { monthIdx=a-1; day=b; }       // second >12 -> day (MDY)
+        else if (localeMonthFirst) { monthIdx=a-1; day=b; }    // ambiguous -> locale
+        else { day=a; monthIdx=b-1; }
+        const d=ymd(fullYear(y),monthIdx,day,true,now);
+        if(d)set(d);
+      }],
+      // Year-less D/M or M/D, but ONLY with slashes AND a date cue word right before
+      // (due/by/on/for), so "3/4 cup" stays text but "due 3/4" parses.
+      [/\b(?:due|by|on|for)\s+(\d{1,2})\/(\d{1,2})\b/i, (m,a,b)=>{
+        a=+a; b=+b;
+        let monthIdx, day;
+        if (a>12 && b<=12) { day=a; monthIdx=b-1; }
+        else if (b>12 && a<=12) { monthIdx=a-1; day=b; }
+        else if (localeMonthFirst) { monthIdx=a-1; day=b; }
+        else { day=a; monthIdx=b-1; }
+        const d=ymd(now.getFullYear(),monthIdx,day,false,now);
+        if(d)set(d);
+      }],
     ];
     for (const [re, fn] of tests) {
       const m = text.match(re);
