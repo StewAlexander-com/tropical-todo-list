@@ -107,7 +107,7 @@ header {
   background: color-mix(in srgb, var(--bg) 86%, transparent);
   backdrop-filter: saturate(150%) blur(12px);
   -webkit-backdrop-filter: saturate(150%) blur(12px);
-  padding: 18px 0 14px; margin-bottom: 4px;
+  padding: calc(18px + env(safe-area-inset-top)) 0 14px; margin-bottom: 4px;
   transition: padding .3s ease;
 }
 /* When the beach is on, the masthead lets the video show through (the title has
@@ -129,7 +129,7 @@ body.scene-on.scrolled header { background: color-mix(in srgb, var(--bg) 70%, tr
 .privacy svg { width: 12px; height: 12px; color: var(--accent); }
 
 /* Control cluster: top-right, quiet until hovered */
-.controls { position: absolute; top: 16px; right: 0; display: flex; align-items: center; gap: 8px; z-index: 2; opacity: .62; transition: opacity .2s ease; }
+.controls { position: absolute; top: calc(16px + env(safe-area-inset-top)); right: 0; display: flex; align-items: center; gap: 8px; z-index: 2; opacity: .62; transition: opacity .2s ease; }
 .controls:hover, .controls:focus-within { opacity: 1; }
 @media (max-width: 460px) { .controls .privacy { display: none; } }
 
@@ -156,8 +156,8 @@ body.scene-on.scrolled header { background: color-mix(in srgb, var(--bg) 70%, tr
 /* Mobile: full-width poster, controls sit above it so the title has room. */
 @media (max-width: 560px) {
   .poster { padding: 6px 8px 4px; }
-  header { padding-top: 52px; }
-  .controls { top: 14px; right: 0; }
+  header { padding-top: calc(52px + env(safe-area-inset-top)); }
+  .controls { top: calc(14px + env(safe-area-inset-top)); right: 0; }
   .tagline .dash { display: none; }
 }
 @media (max-width: 360px) {
