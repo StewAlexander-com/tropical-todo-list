@@ -1,47 +1,66 @@
-# Quiet — a calm, local-first todo PWA
+<div align="center">
 
-Private by design. Runs entirely in your browser. No account, no server, no network calls after the page loads. Your tasks live in this device's IndexedDB only.
+# 🌴 Tropical ToDos
+
+### A calm, local-first to-do list with a cinematic beach backdrop and gentle ocean waves.
+
+**▶ Live app: [stewalexander-com.github.io/tropical-todo-list](https://stewalexander-com.github.io/tropical-todo-list/)**
+
+<img src="docs/screenshot.png" alt="Tropical ToDos — a vintage poster masthead over a cinematic beach video, with tasks on dark lava-rock pills" width="420" />
+
+*Private by design · offline-first · zero network · installable PWA*
+
+</div>
+
+---
+
+## What it is
+
+A single-page to-do list that runs **entirely in your browser**. No account, no server, no network calls after the page loads — your tasks live only on your device. Behind the list plays a real, looping beach video with optional gentle wave sound, framed by a vintage poster masthead.
 
 ## Features
-- **One-box quick-add** with natural-language parsing: `Pay invoice #billing tomorrow 3pm` → title, `#billing` tag, due Mon 3:00 PM.
-- **Calm date buckets**: Overdue · Today · This Week · Later · Someday. Quiet section rules, not a wall of checkboxes.
-- **Fuzzy search** over titles, #tags, and notes (subsequence match — `invce` finds `invoice`).
-- **Tagging** with `#inline` syntax; click any tag to filter.
-- **Keyboard-first**: `/` search · `n` new · `j/k` move · `x` complete · `e` edit · `⌫` delete · `?` help · `esc` clear.
-- **Backup, your way**: one-click JSON export, restore (merge or replace), and optional File System Access auto-backup to a folder you grant — rotating, keeps last 10.
-- **Offline-first PWA**: installable, works with no connection.
-- **Light/dark** automatic.
 
-## Privacy model (honest)
-This is *private-by-no-network*, not encrypted-at-rest. Data is readable by anything with access to this browser profile. The persistence layer (`Store` in `app.js`) is a single swappable interface, so a future `EncryptedStore` (WebAuthn-unlocked AES-GCM) is a drop-in — no rewrite.
+- **Natural-language quick-add** — type `Pay invoice #billing tomorrow 3pm` and it parses the title, the `#billing` tag, and the due date/time automatically.
+- **Calm date buckets** — Overdue · Today · This Week · Later · Someday.
+- **Fuzzy search** over titles, `#tags`, and notes (`invce` finds "invoice").
+- **Keyboard-first** — `/` search · `n` new · `j`/`k` move · `x` complete · `e` edit · `⌫` delete · `?` help.
+- **Cinematic beach background** — an AI-rendered, seamlessly looping video (with a graceful still-image fallback). Tasks sit on dark "lava-rock" pills so text always reads.
+- **Gentle ocean waves** — a synthesized surf loop, on by default, with a one-tap mute toggle.
+- **Backup, your way** — one-click JSON export, restore (merge or replace), and optional auto-backup to a folder you grant.
+- **Offline-first PWA** — installable to your home screen with a tropical palm-and-sun icon; works with no connection.
+- **Light & dusk themes** follow your system preference.
 
-## Run / deploy to GitHub Pages
-Static files, zero build step.
+## Privacy
 
-1. Create a repo and copy these files (`index.html`, `app.js`, `sw.js`, `manifest.webmanifest`) into it.
-2. Push, then enable **Settings → Pages → Deploy from branch → main /(root)**.
-3. Visit `https://<user>.github.io/<repo>/`. Install via the browser's "Add to Home Screen" / install icon.
+This is *private-by-no-network*. Data is stored in your browser's IndexedDB and never transmitted anywhere. The persistence layer is a single swappable module, so encrypted-at-rest storage can be added later without a rewrite.
 
-To serve from a project subpath, the relative paths and `start_url: "."` already work — no changes needed.
+## Install
 
-## Files
-- `index.html` — shell + styles
-- `app.js` — Store, parser, bucketing, fuzzy search, keyboard, backup, confetti
-- `sw.js` — offline app-shell cache (bump `CACHE` to ship updates)
-- `manifest.webmanifest` — install metadata
+Open the [live app](https://stewalexander-com.github.io/tropical-todo-list/) and use your browser's **Install** / **Add to Home Screen** option. It launches full-screen as **Tropical ToDos**.
 
-## Ambient beach (optional)
+## Run it yourself / deploy
 
-A calm, stylized beach can sit behind the list — palm fronds, a turquoise lagoon, drifting sun-sheen, and a gentle shore-foam wash that breathes. Tap the wave icon in the header to cycle three states:
+Static files, zero build step. To host on GitHub Pages:
 
-1. **Off** — the clean default.
-2. **Scene** — visuals only.
-3. **Scene + waves** — adds a looping ocean-surf sound (`assets/waves.mp3`).
+1. Copy the repo contents into a repository.
+2. **Settings → Pages → Deploy from branch → `main` /(root)**.
+3. Visit `https://<user>.github.io/<repo>/`.
 
-Details:
-- **Off by default.** Your choice is remembered on the device (in IndexedDB meta).
-- **No autoplay.** Per browser rules, the wave sound starts only after you tap — when restored from a saved session it arms on your first interaction.
-- **Stylized, not a photo** — pure CSS/SVG + a low-res canvas foam layer. Tiny, offline, zero photo assets. The foam wash and the audio ride the same slow swell so sight and sound rise and fall together.
-- **Light & dusk palettes** follow your system light/dark preference.
-- **Respectful of the machine** — animation pauses when the tab is hidden, and `prefers-reduced-motion` renders a still scene with no animation loop.
-- **Legibility preserved** — a graduated frosted scrim keeps task text well above WCAG AA contrast over the brightest part of the scene.
+## Project structure
+
+| File | Purpose |
+| --- | --- |
+| `index.html` | App shell, styles, poster masthead |
+| `app.js` | Store (IndexedDB), parser, bucketing, fuzzy search, keyboard, backup |
+| `ambient.js` | Beach video (dual-crossfade loop) + wave audio + sound toggle |
+| `sw.js` | Offline app-shell service worker |
+| `manifest.webmanifest` | PWA install metadata |
+| `assets/` | Beach video (day/dusk, desktop/mobile), posters, waves loop |
+| `icons/` | App icons, maskable variants, Open Graph share card |
+| `_build/` | Asset generators (icon, caustics, waves) — not shipped to runtime |
+
+## Credits
+
+- **Beach video** — AI-generated with Veo from the owner's own beach photograph; day/dusk grades via ffmpeg. Seamless loop via a dual-video crossfade (pattern adapted from [rain-view](https://github.com/StewAlexander-com/rain-view)).
+- **Wave audio** — procedurally synthesized (CC0). Audio unlock pattern adapted from [pocket-card](https://github.com/StewAlexander-com/pocket-card).
+- Built by [StewAlexander.com](https://stewalexander.com).
