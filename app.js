@@ -89,6 +89,14 @@ const Parse = (() => {
   const fullYear = y => { y = +y; if (y >= 100) return y; return y <= 68 ? 2000 + y : 1900 + y; };
   // Build a date from numeric Y/M/D, rolling undated past dates to next year only
   // when the year was NOT explicitly given.
+  // Resolve two numbers into {monthIdx, day}: value-based first (a number >12 must
+  // be the day), then locale (US=MDY, rest=DMY).
+  function numericDM(a, b) {
+    if (a > 12 && b <= 12) return { day: a, monthIdx: b - 1 };
+    if (b > 12 && a <= 12) return { monthIdx: a - 1, day: b };
+    if (localeMonthFirst)  return { monthIdx: a - 1, day: b };
+    return { day: a, monthIdx: b - 1 };
+  }
   function ymd(year, monthIdx, day, yearGiven, now) {
     if (monthIdx < 0 || monthIdx > 11 || day < 1 || day > 31) return null;
     const d = new Date(year, monthIdx, day);
@@ -157,31 +165,38 @@ const Parse = (() => {
       // "3/4 cup") is never mistaken for a date. Disambiguate D vs M by value,
       // then fall back to locale (US=MDY, rest=DMY).
       [/\b(\d{1,2})([-/.])(\d{1,2})\2(\d{2,4})\b/, (m,a,sep,b,y)=>{
-        a=+a; b=+b;
-        let monthIdx, day;
-        if (a>12 && b<=12) { day=a; monthIdx=b-1; }            // first >12 -> day (DMY)
-        else if (b>12 && a<=12) { monthIdx=a-1; day=b; }       // second >12 -> day (MDY)
-        else if (localeMonthFirst) { monthIdx=a-1; day=b; }    // ambiguous -> locale
-        else { day=a; monthIdx=b-1; }
-        const d=ymd(fullYear(y),monthIdx,day,true,now);
-        if(d)set(d);
+        const r=numericDM(+a,+b); const d=ymd(fullYear(y),r.monthIdx,r.day,true,now); if(d)set(d);
       }],
-      // Year-less D/M or M/D, but ONLY with slashes AND a date cue word right before
-      // (due/by/on/for), so "3/4 cup" stays text but "due 3/4" parses.
-      [/\b(?:due|by|on|for)\s+(\d{1,2})\/(\d{1,2})\b/i, (m,a,b)=>{
-        a=+a; b=+b;
-        let monthIdx, day;
-        if (a>12 && b<=12) { day=a; monthIdx=b-1; }
-        else if (b>12 && a<=12) { monthIdx=a-1; day=b; }
-        else if (localeMonthFirst) { monthIdx=a-1; day=b; }
-        else { day=a; monthIdx=b-1; }
-        const d=ymd(now.getFullYear(),monthIdx,day,false,now);
-        if(d)set(d);
+      // Year-less D/M or M/D with a STRONG date signal so everyday text stays text
+      // but real dates parse. Strong signals (any one):
+      //   1. a cue word right before:        "due 3/4", "on 7/4"
+      //   2. zero-padded number(s):          "07/04", "03/9"  (ratios aren't padded)
+      //   3. a dash+space description after:  "07/04 - Independence Day"
+      //   4. sits at the very start of input: "7/4 fireworks"
+      // The bare middle-of-sentence form ("mix 3/4 cup") is intentionally ignored.
+      [/(?:\b(?:due|by|on|for)\s+)?(\b\d{1,2})\/(\d{1,2}\b)/i, function(m,a,b){
+        // For non-global String.match, index/input live on the match object (`this`
+        // is not it) — grab them from the arguments tail (exec-style array props).
+        const arr = arguments; const off = arr[arr.length-2]; const full = arr[arr.length-1];
+        const cue=/\b(?:due|by|on|for)\s+$/i.test(full.slice(0, off));
+        const padded=/^0\d$/.test(a)||/^0\d$/.test(b);
+        const dashDesc=/^\s*[-\u2013\u2014]\s+\S/.test(full.slice(off+m.length));
+        const atStart=full.slice(0, off).trim()==='';
+        if(!(cue||padded||dashDesc||atStart)) return;   // weak → leave as text
+        const r=numericDM(+a,+b); const d=ymd(now.getFullYear(),r.monthIdx,r.day,false,now); if(d)set(d);
       }],
     ];
     for (const [re, fn] of tests) {
       const m = text.match(re);
-      if (m) { fn(...m); matched.push(m[0].trim()); text = text.replace(re, ' '); break; }
+      if (!m) continue;
+      const before = due;
+      // Spread capture groups, then append index + input so rules that need
+      // positional context (e.g. numeric-date signal checks) can read them.
+      fn(...m, m.index, m.input);
+      // Only consume the matched text if this rule actually set a date. Rules with
+      // weak/ambiguous signals may decline (return without setting due) — in that
+      // case leave the text intact so it stays in the title and later rules can try.
+      if (due !== before) { matched.push(m[0].trim()); text = text.replace(re, ' '); break; }
     }
 
     if (due && hasTime) applyTime(due, th, tm, tpm);
@@ -194,6 +209,8 @@ const Parse = (() => {
       // drop trailing/leading connector words: "... by", "... on", "due ...", "... at"
       title = title.replace(/\s+\b(by|on|due|at|for|this|next)\b\s*$/i, '');
       title = title.replace(/^\s*\b(due|by|on)\b\s+/i, '');
+      // drop a dash/colon left where a leading date was: "07/04 - Indep Day" -> "Indep Day"
+      title = title.replace(/^\s*[-\u2013\u2014:]\s*/, '');
       title = title.replace(/\s{2,}/g, ' ').trim();
     }
     return { title, tags: [...new Set(tags)], due: due ? due.getTime() : null, hasTime, matched };
