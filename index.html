@@ -348,23 +348,28 @@ body.scrolled .poster-title { font-size: clamp(18px, 5vw, 22px); letter-spacing:
    Two stacked <video> elements; JS crossfades B in before A's loop seam so the
    loop is invisible. Color-graded for a calm, filmic look. Off/on via .scene-on.
    ============================================================ */
-/* Scene (video beach) is ALWAYS on — it fades in once ready. */
-.scene { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; opacity: 0; transition: opacity 1s ease; }
-.scene.ready { opacity: 1; }
+/* Scene container is ALWAYS visible and ALWAYS paints the beach poster via pure
+   CSS — so a beach shows even if JavaScript never runs, runs stale, or the video
+   can't decode. The container itself is NOT opacity-gated (that was the bug that
+   left desktop totally blank when ambient.js didn't reach its ready() call). */
+.scene { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+  background: url('assets/beach-poster.jpg') center top / cover no-repeat; }
+@media (prefers-color-scheme: dark) { .scene { background-image: url('assets/beach-poster-dusk.jpg'); } }
 
 .scene-vid {
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover; object-position: center top; z-index: 0;
   /* gentle filmic grade so it reads as a cohesive backdrop, not raw footage */
   filter: saturate(1.04) contrast(1.03) brightness(1.0);
+  /* Videos fade in only once JS confirms they're playing; until then the CSS
+     poster underneath shows through. */
+  opacity: 0; transition: opacity 1s ease;
 }
-/* Poster fallback: if video can't autoplay/decode, the beach photo still shows
-   (the <video poster> covers the element until/unless frames render). A CSS
-   background on the scene guarantees a beach even if the element is empty. */
-.scene { background: url('assets/beach-poster.jpg') center top / cover no-repeat; }
-@media (prefers-color-scheme: dark) { .scene { background-image: url('assets/beach-poster-dusk.jpg'); } }
+.scene.ready .scene-vid-a { opacity: 1; }
 .scene-vid-b { opacity: 0; transition: opacity 1.1s ease; z-index: 1; }
-.scene-vid-b.visible { opacity: 1; }
+.scene.ready .scene-vid-b.visible { opacity: 1; }
+/* When JS falls back to the still image, keep videos hidden (poster shows). */
+.scene.fallback .scene-vid { opacity: 0 !important; }
 
 /* Very light scrim only — the title and type-box sit on their own lava plates and
    tasks have pills, so the beach video reads vividly with barely any veil. */
@@ -479,7 +484,7 @@ body.scene-on .search input:focus { border-color: var(--accent); box-shadow: 0 0
 <!-- Ambient beach scene: dual crossfading cinematic video (rain-view pattern).
      pointer-events:none, behind everything. -->
 <div class="scene" id="scene" aria-hidden="true">
-  <video class="scene-vid" id="vidA" muted loop playsinline preload="auto"></video>
+  <video class="scene-vid scene-vid-a" id="vidA" muted loop playsinline preload="auto"></video>
   <video class="scene-vid scene-vid-b" id="vidB" muted loop playsinline preload="auto"></video>
   <div class="scene-scrim"></div>
 </div>

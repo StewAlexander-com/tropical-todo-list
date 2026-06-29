@@ -1,7 +1,12 @@
 /* Quiet service worker — offline-first app shell.
  * Bumps cache version on each release so updates land. App data lives in
  * IndexedDB (not the cache), so clearing caches never touches your tasks. */
-const CACHE = 'quiet-v17';
+const CACHE = 'quiet-v18';
+/* Code files are served network-first so the running JS always matches the
+   freshly-fetched HTML. (A stale cached ambient.js paired with new markup was
+   leaving the desktop background blank.) Cached copies are kept only as an
+   offline fallback. */
+const CODE = /\.(?:js|css)$/;
 /* Note: videos are intentionally NOT precached (large); they stream and are
    runtime-cached on first play by the fetch handler below. */
 const SHELL = ['./', './index.html', './app.js', './ambient.js', './manifest.webmanifest',
@@ -30,11 +35,14 @@ self.addEventListener('fetch', e => {
   // to cache it — the poster image covers the offline first-paint.
   if (req.headers.has('range') || /\.mp4$/.test(url.pathname)) return;
 
-  // Network-first for the HTML document so updates show; fall back to cache offline.
-  if (req.mode === 'navigate' || req.destination === 'document') {
+  // Network-first for the HTML document AND code (js/css) so updates always show
+  // and code never goes stale relative to the markup; fall back to cache offline.
+  if (req.mode === 'navigate' || req.destination === 'document' ||
+      req.destination === 'script' || req.destination === 'style' || CODE.test(url.pathname)) {
     e.respondWith(
       fetch(req).then(res => {
-        const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); return res;
+        if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+        return res;
       }).catch(() => caches.match(req).then(r => r || caches.match('./index.html')))
     );
     return;
