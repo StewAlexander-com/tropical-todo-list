@@ -16,7 +16,7 @@
 
 ## What it is
 
-A single-page to-do list that runs **entirely in your browser**. No account, no server, no network calls after the page loads — your tasks live only on your device. Behind the list plays a real, looping beach video with optional gentle wave sound, framed by a vintage poster masthead.
+A single-page to-do list that runs **entirely in your browser**. No account, no server, no network calls after the page loads — your tasks live only on your device. Behind the list plays a real, looping beach video with optional gentle wave sound and occasional real bird calls, framed by a vintage poster masthead.
 
 ## Features
 
@@ -25,7 +25,7 @@ A single-page to-do list that runs **entirely in your browser**. No account, no 
 - **Fuzzy search** over titles, `#tags`, and notes (`invce` finds "invoice").
 - **Keyboard-first** — `/` search · `n` new · `j`/`k` move · `x` complete · `e` edit · `⌫` delete · `?` help.
 - **Cinematic beach background** — an AI-rendered, seamlessly looping video (with a graceful still-image fallback). Tasks sit on dark "lava-rock" pills so text always reads.
-- **Gentle ocean waves** — a synthesized surf loop, on by default, with a one-tap mute toggle.
+- **Gentle ocean waves + birds** — a synthesized surf loop with occasional real bird calls layered in, on by default, with a one-tap mute toggle.
 - **Backup, your way** — one-click JSON export, restore (merge or replace), and optional auto-backup to a folder you grant.
 - **Offline-first PWA** — installable to your home screen with a tropical palm-and-sun icon; works with no connection.
 - **Light & dusk themes** follow your system preference.
@@ -55,7 +55,7 @@ Static files, zero build step. To host on GitHub Pages:
 | `ambient.js` | Beach video (dual-crossfade loop) + wave audio + sound toggle |
 | `sw.js` | Offline app-shell service worker |
 | `manifest.webmanifest` | PWA install metadata |
-| `assets/` | Beach video (day/dusk, desktop/mobile), posters, waves loop |
+| `assets/` | Beach video (day/dusk, desktop/mobile), posters, waves loop, `birds/` chirp clips |
 | `icons/` | App icons, maskable variants, Open Graph share card |
 | `_build/` | Asset generators (icon, caustics, waves) — not shipped to runtime |
 
@@ -63,4 +63,5 @@ Static files, zero build step. To host on GitHub Pages:
 
 - **Beach video** — AI-generated with Veo from the owner's own beach photograph; day/dusk grades via ffmpeg. Seamless loop via a dual-video crossfade (pattern adapted from [rain-view](https://github.com/StewAlexander-com/rain-view)).
 - **Wave audio** — procedurally synthesized (CC0). Audio unlock pattern adapted from [pocket-card](https://github.com/StewAlexander-com/pocket-card).
+- **Bird calls** — short clips from real recordings on [Wikimedia Commons](https://commons.wikimedia.org/) (Common Tailorbird, Indian White-eye & Song Wren, CC BY-SA 4.0; Indian Golden Oriole, public domain), layered occasionally over the surf via the Web Audio API.
 - Built by [StewAlexander.com](https://stewalexander.com).
