@@ -890,7 +890,39 @@ boot();
   onScroll();
 })();
 
-// register service worker for offline
+// Register the service worker and keep installed PWAs up to date automatically,
+// so new features (e.g. the bird sounds) arrive WITHOUT re-adding to the home
+// screen. Strategy:
+//   1. Register on load, then force an update check (reg.update bypasses the
+//      browser's ~24h SW throttle) so a fresh sw.js is fetched every launch.
+//   2. Re-check whenever the app regains focus / visibility, and hourly.
+//   3. When a NEW worker takes control of an ALREADY-controlled page (i.e. this
+//      is an update, not a first install), reload exactly once so the new code
+//      and freshly-cached assets are live. A guard flag prevents reload loops,
+//      and first-time visitors (no prior controller) never reload.
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  let reloadedForUpdate = false;
+  const hadController = !!navigator.serviceWorker.controller; // false on first install
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloadedForUpdate) return; // skip first install & avoid loops
+    reloadedForUpdate = true;
+    location.reload();
+  });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      const poke = () => { try { reg.update(); } catch (e) {} };
+      poke();                                              // check now
+      setInterval(poke, 60 * 60 * 1000);                   // and hourly while open
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) poke(); });
+      window.addEventListener('focus', poke);
+      // If an updated worker is found, let it activate immediately (sw.js also
+      // calls skipWaiting, but nudge any that are waiting just in case).
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (nw) nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && reg.waiting) { try { reg.waiting.postMessage('skipWaiting'); } catch (e) {} }
+        });
+      });
+    }).catch(() => {});
+  });
 }
