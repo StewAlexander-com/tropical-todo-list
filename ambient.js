@@ -139,6 +139,7 @@
     if (p && p.catch) p.catch(() => {});
     audioStarted = true;
     fadeAudio(0.5, 1400);
+    Birds.start();   // bring in the occasional birds alongside the surf
   }
   // Arm: the first interaction anywhere starts sound if it's enabled.
   function armAudio() {
@@ -159,14 +160,101 @@
     soundOn = !soundOn;
     applySoundUI();
     try { STORE.setMeta('sound', soundOn ? 'on' : 'off'); } catch (e) {}
-    if (soundOn) { if (!audioStarted) reallyStartAudio(); else { const p = waves.play(); if (p && p.catch) p.catch(() => {}); fadeAudio(0.5, 600); } }
-    else fadeAudio(0, 500);
+    if (soundOn) { if (!audioStarted) reallyStartAudio(); else { const p = waves.play(); if (p && p.catch) p.catch(() => {}); fadeAudio(0.5, 600); Birds.resume(); } }
+    else { fadeAudio(0, 500); Birds.stop(); }
   });
 
   // Resume audio after backgrounding if it should be on.
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && soundOn && audioStarted) { const p = waves.play(); if (p && p.catch) p.catch(() => {}); }
+    if (document.hidden) { Birds.stop(); return; }
+    if (soundOn && audioStarted) { const p = waves.play(); if (p && p.catch) p.catch(() => {}); Birds.resume(); }
   });
+
+  /* ---- Birds: occasional REAL chirps layered over the waves -------------------
+   * Real recordings (CC / public-domain, from Wikimedia Commons): tailorbird,
+   * white-eye, oriole, song wren — short clips chosen to read unmistakably as
+   * birds, never synthetic. Played through the Web Audio API so many calls can
+   * overlap cheaply (one decoded buffer each, no <audio> elements). Each play
+   * gets a small random gain + playback-rate wobble so it never sounds looped,
+   * and they sit clearly UNDER the surf. Lazily fetched only once sound is on. */
+  const BIRD_FILES = ['bird1','bird2','bird3','bird4','bird5','bird6','bird7']
+    .map(n => 'assets/birds/' + n + '.mp3');
+  const Birds = (() => {
+    let actx = null, master = null, buffers = [], loaded = false, loading = false;
+    let timer = 0, running = false;
+    const rand = (a, b) => a + Math.random() * (b - a);
+
+    function ensureCtx() {
+      if (actx) return actx;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      actx = new AC();
+      master = actx.createGain();
+      master.gain.value = 1;
+      master.connect(actx.destination);
+      return actx;
+    }
+    async function load() {
+      if (loaded || loading || !ensureCtx()) return;
+      loading = true;
+      try {
+        buffers = await Promise.all(BIRD_FILES.map(async (u) => {
+          try {
+            const r = await fetch(u); if (!r.ok) return null;
+            const ab = await r.arrayBuffer();
+            return await actx.decodeAudioData(ab);
+          } catch (e) { return null; }
+        }));
+        buffers = buffers.filter(Boolean);
+        loaded = buffers.length > 0;
+      } catch (e) { /* no birds, no harm */ }
+      loading = false;
+    }
+    function chirp(delay) {
+      if (!loaded || !actx) return;
+      const buf = buffers[(Math.random() * buffers.length) | 0];
+      if (!buf) return;
+      const src = actx.createBufferSource();
+      src.buffer = buf;
+      src.playbackRate.value = rand(0.94, 1.06);   // subtle pitch wobble (stays natural)
+      const g = actx.createGain();
+      const peak = rand(0.12, 0.30);               // well under the waves (~0.5)
+      const t0 = actx.currentTime + (delay || 0);
+      const dur = buf.duration / src.playbackRate.value;
+      // tiny envelope so overlaps never click
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(peak, t0 + 0.04);
+      g.gain.setValueAtTime(peak, Math.max(t0 + 0.05, t0 + dur - 0.08));
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      src.connect(g); g.connect(master);
+      try { src.start(t0); src.stop(t0 + dur + 0.02); } catch (e) {}
+    }
+    function scheduleNext() {
+      clearTimeout(timer);
+      if (!running) return;
+      const wait = rand(6000, 16000);              // tropical-but-calm cadence
+      timer = setTimeout(() => {
+        if (!running) return;
+        chirp(0);
+        if (Math.random() < 0.28) chirp(rand(0.3, 1.2)); // sometimes a 2nd, layered
+        scheduleNext();
+      }, wait);
+    }
+    return {
+      async start() {
+        if (running) return;
+        if (!ensureCtx()) return;
+        if (actx.state === 'suspended') { try { await actx.resume(); } catch (e) {} }
+        await load();
+        if (!loaded) return;
+        running = true;
+        // first chirp soon after sound starts, then randomized
+        timer = setTimeout(() => { if (running) { chirp(0); scheduleNext(); } }, rand(2500, 6000));
+      },
+      stop() { running = false; clearTimeout(timer); if (actx && actx.state === 'running') { try { actx.suspend(); } catch (e) {} } },
+      resume() { if (!running && soundOn && audioStarted) this.start(); else if (actx && actx.state === 'suspended') { try { actx.resume(); } catch (e) {} } },
+    };
+  })();
 
   /* ---- Boot ---- */
   (async () => {

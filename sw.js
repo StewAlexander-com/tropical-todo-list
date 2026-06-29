@@ -1,7 +1,7 @@
 /* Quiet service worker — offline-first app shell.
  * Bumps cache version on each release so updates land. App data lives in
  * IndexedDB (not the cache), so clearing caches never touches your tasks. */
-const CACHE = 'quiet-v18';
+const CACHE = 'quiet-v19';
 /* Code files are served network-first so the running JS always matches the
    freshly-fetched HTML. (A stale cached ambient.js paired with new markup was
    leaving the desktop background blank.) Cached copies are kept only as an
@@ -11,6 +11,9 @@ const CODE = /\.(?:js|css)$/;
    runtime-cached on first play by the fetch handler below. */
 const SHELL = ['./', './index.html', './app.js', './ambient.js', './manifest.webmanifest',
   './assets/waves.mp3', './assets/beach-poster.jpg', './assets/beach-poster-dusk.jpg',
+  './assets/birds/bird1.mp3', './assets/birds/bird2.mp3', './assets/birds/bird3.mp3',
+  './assets/birds/bird4.mp3', './assets/birds/bird5.mp3', './assets/birds/bird6.mp3',
+  './assets/birds/bird7.mp3',
   './icons/icon-192.png', './icons/icon-512.png', './icons/favicon-32.png'];
 
 self.addEventListener('install', e => {
