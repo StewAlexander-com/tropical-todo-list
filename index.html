@@ -396,6 +396,7 @@ body.is-dragging .cat-btn.drop-over .cat-label {
   position: fixed; z-index: 41; left: 50%; bottom: 0; transform: translate(-50%, 12px); opacity: 0; pointer-events: none;
   width: min(520px, 100%); background: var(--surface); border: 1px solid var(--line);
   border-radius: 18px 18px 0 0; box-shadow: 0 -8px 40px rgba(0,0,0,.18); padding: 22px 22px calc(22px + env(safe-area-inset-bottom));
+  max-height: min(88vh, 720px); overflow-y: auto;
   transition: transform .24s cubic-bezier(.22,1,.36,1), opacity .2s ease;
 }
 @media (min-width: 560px) { .sheet { bottom: 50%; transform: translate(-50%, 56%); border-radius: 16px; } .sheet.on { transform: translate(-50%, 50%); } }
@@ -405,6 +406,8 @@ body.is-dragging .cat-btn.drop-over .cat-label {
 .sheet .group { margin-bottom: 16px; }
 .sheet .group h3 { font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 9px; }
 .sheet .group > p { font-size: 12.5px; color: var(--text-2); line-height: 1.45; }
+.sheet .group > p + .help-grid { margin-top: 9px; }
+.sheet .group > .help-grid + p { margin-top: 9px; }
 .opt { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line-soft); }
 .opt:first-of-type { border-top: none; }
 .opt .txt { flex: 1; }
@@ -614,7 +617,7 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
       <button class="iconbtn" id="btnBackup" title="Backup & restore" aria-label="Backup and restore">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
       </button>
-      <button class="iconbtn" id="btnHelp" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">
+      <button class="iconbtn" id="btnHelp" title="Help" aria-label="Help">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
       </button>
       <button class="iconbtn ambient-btn" id="btnAmbient" data-sound="on" title="Ambient sound" aria-label="Ambient sound: on" aria-pressed="true">
@@ -722,8 +725,8 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
 <!-- Help sheet -->
 <div class="sheet" id="helpSheet" role="dialog" aria-modal="true" aria-labelledby="hpTitle" aria-hidden="true">
   <button class="iconbtn close" id="hpClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-  <h2 id="hpTitle">Keyboard &amp; syntax</h2>
-  <p class="sub">Built for the keyboard. The mouse is optional.</p>
+  <h2 id="hpTitle">Help</h2>
+  <p class="sub">Keyboard, quick-add, and Work / Home / Misc.</p>
   <div class="group">
     <h3>Navigation</h3>
     <div class="help-grid">
@@ -740,7 +743,7 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
   <div class="group">
     <h3>Quick-add syntax</h3>
     <div class="help-grid">
-      <div>Tag <span class="kbd">#work</span></div>
+      <div>Tag <span class="kbd">#billing</span></div>
       <div>Today <span class="kbd">today</span></div>
       <div>Tomorrow <span class="kbd">tmrw</span></div>
       <div>Weekday <span class="kbd">fri</span></div>
@@ -752,7 +755,17 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
   </div>
   <div class="group">
     <h3>Work · Home · Misc</h3>
-    <p>A time is parsed and files a box (3pm on a weekday → Work). Drag any task onto Work, Home, or Misc. Or tap the row icon. <span class="kbd">#work</span> <span class="kbd">#home</span> <span class="kbd">#misc</span> also files. Click a box to open it.</p>
+    <p>Three icons under search. Date buckets stay the default list. Wording suggests a box; you file it — unless a time is in the title, which files the suggestion (weekday 3pm → Work). Override in the hint before Add.</p>
+    <div class="help-grid">
+      <div>Open a box <span class="kbd">tap</span></div>
+      <div>Back to dates <span class="kbd">esc</span></div>
+      <div>File a task <span class="kbd">drag</span></div>
+      <div>Change box <span class="kbd">row</span></div>
+      <div>Work <span class="kbd">#work</span></div>
+      <div>Home <span class="kbd">#home</span></div>
+      <div>Misc <span class="kbd">#misc</span></div>
+      <div>Time files it <span class="kbd">3pm</span></div>
+    </div>
   </div>
 </div>
 
