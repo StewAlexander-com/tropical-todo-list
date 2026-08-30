@@ -1,7 +1,7 @@
 # Tropical ToDos
 > A calm, local-first to-do list with a cinematic beach backdrop. Private by design — tasks stay in your browser.
 
-Canonical: https://troplist.com/
+Canonical: https://www.troplist.com/
 
 ## Product
 - Natural-language quick-add (dates, times, #tags)
@@ -14,6 +14,6 @@ Canonical: https://troplist.com/
 No account. No server-side task storage. Data lives in IndexedDB on the device.
 
 ## Links
-- App: https://troplist.com/
+- App: https://www.troplist.com/
 - Source: https://github.com/StewAlexander-com/tropical-todo-list
-- Sitemap: https://troplist.com/sitemap.xml
+- Sitemap: https://www.troplist.com/sitemap.xml

@@ -1,5 +1,5 @@
 # Tropical ToDos — open to search and AI crawlers
-# https://troplist.com/
+# https://www.troplist.com/
 
 User-agent: *
 Allow: /
@@ -58,4 +58,4 @@ Allow: /
 User-agent: cohere-ai
 Allow: /
 
-Sitemap: https://troplist.com/sitemap.xml
+Sitemap: https://www.troplist.com/sitemap.xml

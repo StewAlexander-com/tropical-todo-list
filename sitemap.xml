@@ -2,12 +2,12 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
-    <loc>https://troplist.com/</loc>
+    <loc>https://www.troplist.com/</loc>
     <lastmod>2026-08-30</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <image:image>
-      <image:loc>https://troplist.com/icons/og-image.jpg?v=20260830</image:loc>
+      <image:loc>https://www.troplist.com/icons/og-image.jpg?v=20260830b</image:loc>
       <image:title>Tropical ToDos — a calm, local-first to-do list</image:title>
     </image:image>
   </url>
