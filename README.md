@@ -21,6 +21,7 @@ A single-page to-do list that runs **entirely in your browser**. No account, no 
 ## Features
 
 - **Natural-language quick-add** — type `Pay invoice #billing tomorrow 3pm` and it parses the title, the `#billing` tag, and the due date/time automatically.
+- **Work · Home · Misc** — wording and times suggest a box; a referenced time files it (e.g. `Pay invoice tomorrow 3pm` → Work). Drag any task onto a bucket, or click an icon under search to open it.
 - **Calm date buckets** — Overdue · Today · This Week · Later · Someday.
 - **Fuzzy search** over titles, `#tags`, and notes (`invce` finds "invoice").
 - **Keyboard-first** — `/` search · `n` new · `j`/`k` move · `x` complete · `e` edit · `⌫` delete · `?` help.

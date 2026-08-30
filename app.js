@@ -199,8 +199,10 @@ const Parse = (() => {
       if (due !== before) { matched.push(m[0].trim()); text = text.replace(re, ' '); break; }
     }
 
-    if (due && hasTime) applyTime(due, th, tm, tpm);
-    else if (due && th!=null) applyTime(due, th, tm, tpm);
+    if (th != null) {
+      if (due == null) set(now);
+      applyTime(due, th, tm, tpm);
+    }
 
     // cleanup title — remove filler prepositions left dangling by date/time extraction
     let title = text.replace(/\s+/g, ' ').trim();
@@ -269,6 +271,78 @@ const BUCKETS = [
 ];
 
 /* ============================================================
+ * Classify — Needle-inspired triage, not a model
+ * Closed schema (Work / Home / Misc). Date + wording rank
+ * suggestions. Confidence is a margin signal. NOTHING is filed
+ * until the user picks a box (hint, #work|#home|#misc, or row).
+ * ============================================================ */
+const Classify = (() => {
+  const IDS = ['work', 'home', 'misc'];
+  const LABELS = { work: 'Work', home: 'Home', misc: 'Misc' };
+  const STOP = new Set(['the','a','an','to','for','and','or','of','in','on','at','my','our','your','with','from','by','is','be','this','that','it','as','due','task','todo','please','just','need','get','make','take','me']);
+  const LEX = {
+    work: 'meeting meetings standup invoice invoicing invoiced bill bills billing billed billable client clients email emails slack zoom call calls conference webinar deadline deliverable sprint ticket jira deploy release office coworker boss manager payroll paycheck salary expense reimbursement timesheet onboard onboarding interview resume linkedin presentation deck spreadsheet budget forecast contract proposal vendor stakeholder report reporting debug backend frontend retro retrospective roadmap spec launch customer sales lead crm commute laptop agenda minutes followup blocker planning performance colleague colleagues accounting consultant consulting contractor repo github gitlab review reviews okrs kpi kpis qbr codebase'.split(' '),
+    home: 'grocery groceries supermarket laundry dishes dishwasher vacuum mop trash recycling kids kid child children school pickup dropoff daycare vet veterinarian dog cat pet lawn mow garden plants plumber electrician repair leak fridge oven dinner cook cooking meal family spouse partner bedtime homework mortgage rent landlord apartment house kitchen bathroom bedroom closet ikea assemble paint furniture neighbor drywall gutters hvac clean cleaning organize pantry litter chores chore housework babysit babysitter milk eggs bread diapers'.split(' '),
+    misc: 'gift gifts birthday anniversary travel trip flight hotel vacation hobby gym workout errand errands car oil tires dmv registration library dentist pharmacy haircut donate volunteer concert tickets museum passport visa packing pack suitcase souvenir'.split(' '),
+  };
+  const SETS = Object.fromEntries(IDS.map(id => [id, new Set(LEX[id])]));
+
+  function tokenize(s) {
+    return (String(s || '').toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).filter(t => t.length >= 2 && !STOP.has(t));
+  }
+  function datePrior(due, hasTime) {
+    const w = { work: 0, home: 0, misc: 0 };
+    const d = due != null ? new Date(due) : (hasTime ? new Date() : null);
+    if (!d) { w.misc += 0.12; return w; }
+    const day = d.getDay();
+    const weekend = day === 0 || day === 6;
+    if (weekend) w.home += 0.4;
+    else w.work += 0.22;
+    if (hasTime) {
+      const hr = d.getHours();
+      if (!weekend && hr >= 8 && hr < 18) w.work += 0.35;
+      if (hr >= 18 || hr < 7) w.home += 0.28;
+    }
+    return w;
+  }
+  function lexical(tokens, learned) {
+    const w = { work: 0, home: 0, misc: 0 };
+    for (const id of IDS) {
+      const set = SETS[id];
+      const learnedSet = new Set((learned && learned[id]) || []);
+      for (const t of tokens) {
+        if (set.has(t)) w[id] += 1.15;
+        if (learnedSet.has(t)) w[id] += 1.4;
+      }
+    }
+    return w;
+  }
+  // Rank all three (catalogue < 5, so nothing is dropped from the "grammar").
+  // confidence/margin mirror Needle's gate: act (emphasize) above, escalate (show
+  // even matches) below. The return value is a suggestion list, never a write.
+  function suggest(title, tags, due, hasTime, learned, extra) {
+    const tokens = [...new Set(tokenize(title).concat(tokenize(extra || '')))];
+    const prior = datePrior(due, hasTime);
+    const lex = lexical(tokens, learned);
+    const tagHit = IDS.find(id => (tags || []).includes(id)) || null;
+    const scores = {};
+    for (const id of IDS) scores[id] = lex[id] + prior[id] + (tagHit === id ? 5 : 0);
+    const ranked = IDS.map(id => ({ id, score: scores[id] })).sort((a, b) => b.score - a.score);
+    const top = ranked[0], second = ranked[1];
+    const sum = ranked.reduce((s, x) => s + x.score, 0) || 1;
+    const margin = top.score - second.score;
+    const confidence = top.score <= 0 ? 0
+      : (top.score / sum) * (margin > 0 ? Math.min(1, 0.55 + margin / (top.score + 0.01) * 0.45) : 0.4);
+    const evidenced = lex[top.id] > 0 || tagHit === top.id || (top.score >= 0.2 && margin >= 0.18);
+    return { ranked, top: evidenced && top.score > 0 ? top.id : null, confidence, margin, tagHit };
+  }
+  function boxFromTags(tags) {
+    return IDS.find(id => (tags || []).includes(id)) || null;
+  }
+  return { IDS, LABELS, tokenize, suggest, boxFromTags };
+})();
+
+/* ============================================================
  * Fuzzy search — subsequence match + scoring (no deps)
  * ============================================================ */
 function fuzzy(query, text) {
@@ -299,6 +373,11 @@ let view = [];            // flattened rendered task ids in order (for j/k)
 let sel = -1;             // selected index into view
 let query = '';
 let tagFilter = null;
+let catFilter = null;     // user-opened box, or null = all (date buckets)
+let pendingCat = null;    // box the user picked in the add hint
+let catPickId = null;     // task id showing the 3-box picker
+let suppressCatClick = false;
+let catLearned = { work: [], home: [], misc: [] };
 let editingId = null;
 
 const ICON = {
@@ -307,6 +386,10 @@ const ICON = {
   del: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
   x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
   leaf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>',
+  work: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="2.7"/><path d="M12 3v1.1M17.4 7.5h1.1M5.5 7.5h1.1M16.2 3.7l.7-.7M7.1 3.7l-.7-.7"/><path d="M4 14.5h16"/><path d="M6 14.5V19M10 14.5v3.2M14 14.5v3.2M18 14.5V19"/><path d="M4 19h16"/></svg>',
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 13 12 5.5 20.5 13"/><path d="M5.8 13 12 7.8 18.2 13"/><path d="M7.5 13v6.5M16.5 13v6.5"/><path d="M5 19.5h14"/><path d="M12 5.5v2"/></svg>',
+  misc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 16.5c-3.8.2-6.7-2.4-6.7-5.6 0-3.4 2.7-5.6 5.6-5.2 2.2.3 3.7 2.2 3.7 4.4 0 1.9-1.3 3.4-3 3.4-1.3 0-2.3-.9-2.3-2.1 0-.9.6-1.6 1.5-1.6"/><path d="M15.8 14.8c1.6 1.2 3.4 1.6 4.6.6"/><path d="M8.2 17.2c-1.3.9-3 .7-3.8-.6"/><path d="M9.2 8.2c-.8-1.2-1-2.6-.2-3.4"/></svg>',
+  file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h16v11H4z"/><path d="M8 8V5.5h8V8"/><path d="M4 13h16"/></svg>',
 };
 
 function esc(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -345,13 +428,14 @@ function dateMatch(query, t) {
 }
 
 function matches(t) {
+  if (catFilter && t.category !== catFilter) return false;
   if (tagFilter && !t.tags.includes(tagFilter)) return false;
   if (!query) return true;
-  const hay = t.title + ' ' + t.tags.map(x => '#' + x).join(' ') + ' ' + (t.notes || '');
+  const hay = t.title + ' ' + t.tags.map(x => '#' + x).join(' ') + ' ' + (t.notes || '') + ' ' + (t.category ? Classify.LABELS[t.category] : '');
   return fuzzy(query, hay) > -1 || dateMatch(query, t);
 }
 function searchScore(t) {
-  const hay = t.title + ' ' + t.tags.map(x => '#' + x).join(' ');
+  const hay = t.title + ' ' + t.tags.map(x => '#' + x).join(' ') + ' ' + (t.category ? Classify.LABELS[t.category] : '');
   const textScore = fuzzy(query, hay);
   // Date hits rank just under strong text hits but clearly above weak ones.
   const dateScore = dateMatch(query, t) ? 30 : -1;
@@ -361,6 +445,7 @@ function searchScore(t) {
 function render() {
   const list = $('#list');
   list.innerHTML = '';
+  list.setAttribute('aria-label', catFilter ? Classify.LABELS[catFilter] : 'Tasks');
   view = [];
 
   let pool = tasks.filter(matches);
@@ -381,6 +466,7 @@ function render() {
   if (!pool.length) {
     list.appendChild(emptyState());
     syncBadge();
+    syncCatStrip();
     return;
   }
 
@@ -409,6 +495,21 @@ function render() {
   if (sel >= view.length) sel = view.length - 1;
   paintSel();
   syncBadge();
+  syncCatStrip();
+}
+
+function syncCatStrip() {
+  Classify.IDS.forEach(id => {
+    const n = tasks.filter(t => t.category === id).length;
+    const label = Classify.LABELS[id];
+    const countEl = document.getElementById('catN' + label);
+    const btn = document.getElementById('catBtn' + label);
+    if (countEl) countEl.textContent = String(n);
+    if (btn) {
+      btn.setAttribute('aria-expanded', catFilter === id ? 'true' : 'false');
+      btn.setAttribute('aria-label', `${label}, ${n} task${n !== 1 ? 's' : ''}${catFilter === id ? ', open' : ''}`);
+    }
+  });
 }
 
 function bucketHead(label, count) {
@@ -456,6 +557,7 @@ function taskRow(t) {
     chip.onclick = () => { tagFilter = tag; query = ''; $('#search').value=''; sel = -1; render(); };
     meta.appendChild(chip);
   });
+  meta.appendChild(catControls(t));
   body.appendChild(meta);
   row.appendChild(body);
 
@@ -465,14 +567,50 @@ function taskRow(t) {
   actions.append(eb, db);
   row.appendChild(actions);
 
-  row.onclick = e => { if (e.target.closest('button,.check,.tag')) return; const i = view.indexOf(t.id); if (i>=0){ sel=i; paintSel(); } };
+  row.onclick = e => {
+    if (Drag.consume()) return;
+    if (e.target.closest('button,.check,.tag')) return;
+    const i = view.indexOf(t.id); if (i >= 0) { sel = i; paintSel(); }
+    if (catPickId && catPickId !== t.id) { catPickId = null; render(); }
+  };
+  row.addEventListener('pointerdown', e => Drag.begin(e, t.id));
   return row;
+}
+
+function catControls(t) {
+  const wrap = el('span', 'cat-picks');
+  if (catPickId === t.id) {
+    const s = Classify.suggest(t.title, t.tags, t.due, t.hasTime, catLearned, t.raw);
+    Classify.IDS.forEach(id => {
+      const b = el('button', 'cat-pick-row' + (t.category === id ? ' on' : '') + (s.top === id && t.category !== id ? ' best' : ''));
+      b.type = 'button';
+      b.innerHTML = ICON[id];
+      b.title = Classify.LABELS[id];
+      b.setAttribute('aria-label', (t.category === id ? 'Remove from ' : 'File in ') + Classify.LABELS[id]);
+      b.onclick = ev => { ev.stopPropagation(); fileTask(t.id, t.category === id ? null : id); };
+      wrap.appendChild(b);
+    });
+    return wrap;
+  }
+  const b = el('button', 'cat-mark' + (t.category ? ' filed' : ' suggest'));
+  b.type = 'button';
+  const s = t.category ? null : Classify.suggest(t.title, t.tags, t.due, t.hasTime, catLearned, t.raw);
+  const shown = t.category || (s && s.top) || 'file';
+  b.innerHTML = ICON[shown];
+  b.title = t.category
+    ? Classify.LABELS[t.category] + ' — change box'
+    : (s && s.top ? 'Suggested ' + Classify.LABELS[s.top] + '. Choose a box' : 'Choose a box');
+  b.setAttribute('aria-label', b.title);
+  b.onclick = ev => { ev.stopPropagation(); catPickId = t.id; render(); };
+  wrap.appendChild(b);
+  return wrap;
 }
 
 function emptyState() {
   const e = el('div', 'empty');
   if (query) e.innerHTML = `<div class="ring">${ICON.leaf}</div><h3>No matches</h3><p>Nothing matches “${esc(query)}”. Try fewer letters.</p>`;
   else if (tagFilter) e.innerHTML = `<div class="ring">${ICON.leaf}</div><h3>Nothing tagged #${esc(tagFilter)}</h3><p>Clear the filter to see everything.</p>`;
+  else if (catFilter) e.innerHTML = `<div class="ring">${ICON[catFilter]}</div><h3>Nothing in ${esc(Classify.LABELS[catFilter])}</h3><p>Wording only suggests a box. File a task here when you choose.</p>`;
   else e.innerHTML = `<div class="ring">${ICON.leaf}</div><h3>A clear mind</h3><p>No tasks yet. Type one above — dates and #tags are parsed automatically.</p>`;
   return e;
 }
@@ -494,14 +632,27 @@ function cleanTitle(parsed) {
   const t = (parsed.title || '').trim();
   return t || 'Untitled task';
 }
+function boxForParsed(p, raw, userPick) {
+  if (userPick) return userPick;
+  const tag = Classify.boxFromTags(p.tags);
+  if (tag) return tag;
+  const s = Classify.suggest(p.title, p.tags, p.due, p.hasTime, catLearned, raw);
+  // A referenced time is extracted AND files a box, same as the clock.
+  if (p.hasTime && s.top) return s.top;
+  return null;
+}
 async function addFromInput(raw) {
   raw = raw.trim(); if (!raw) return;
   const p = Parse.parse(raw);
-  const t = { id: uid(), title: cleanTitle(p), raw, tags: p.tags, due: p.due, hasTime: p.hasTime, done: false, created: Date.now() };
+  const category = boxForParsed(p, raw, pendingCat);
+  const t = { id: uid(), title: cleanTitle(p), raw, tags: p.tags, due: p.due, hasTime: p.hasTime, done: false, created: Date.now(), category: category || null };
+  if (category) rememberChoice(t.title, category);
+  pendingCat = null;
   tasks.push(t);
   await STORE.put(t);
   $('#add').value = ''; updateHint('');
   query = ''; $('#search').value = '';
+  tagFilter = null; catFilter = null; catPickId = null;
   render(); afterChange();
 }
 async function toggle(id) {
@@ -510,16 +661,125 @@ async function toggle(id) {
   await STORE.put(t); render(); afterChange();
   if (t.done) maybeCelebrate();
 }
-function startEdit(id) { editingId = id; render(); }
+function startEdit(id) { editingId = id; catPickId = null; render(); }
 async function commitEdit(id, raw) {
   const t = tasks.find(x => x.id === id); if (!t) { editingId = null; return render(); }
   raw = raw.trim();
   if (!raw) { editingId = null; return removeTask(id, { label: 'Removed empty task' }); }
   const p = Parse.parse(raw);
   t.title = cleanTitle(p); t.raw = raw; t.tags = p.tags; t.due = p.due; t.hasTime = p.hasTime;
-  editingId = null;
+  const tagBox = Classify.boxFromTags(p.tags);
+  if (tagBox) { t.category = tagBox; rememberChoice(t.title, tagBox); }
+  else if (!t.category && p.hasTime) {
+    const s = Classify.suggest(p.title, p.tags, p.due, p.hasTime, catLearned, raw);
+    if (s.top) { t.category = s.top; rememberChoice(t.title, s.top); }
+  }
+  editingId = null; catPickId = null;
   await STORE.put(t); render(); afterChange();
 }
+function rememberChoice(title, cat) {
+  if (!cat || !Classify.IDS.includes(cat)) return;
+  const toks = Classify.tokenize(title).filter(t => t.length >= 3);
+  const arr = catLearned[cat] ? catLearned[cat].slice() : [];
+  toks.forEach(tok => { const i = arr.indexOf(tok); if (i >= 0) arr.splice(i, 1); arr.push(tok); });
+  catLearned[cat] = arr.slice(-80);
+  STORE.setMeta('catLearned', catLearned).catch(() => {});
+}
+async function fileTask(id, cat) {
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  t.category = cat || null;
+  catPickId = null;
+  if (cat) rememberChoice(t.title, cat);
+  await STORE.put(t); render(); afterChange();
+  if (cat) toast('Filed in ' + Classify.LABELS[cat]);
+}
+
+/* Pointer drag — pick up a task and drop it on Work / Home / Misc.
+ * Hold ~180ms (or move 10px) to lift; vertical scroll before that cancels.
+ * Drop files the task; it does not open the accordion. */
+const Drag = (() => {
+  const MOVE = 10, HOLD = 180, SCROLL_DY = 14;
+  let taskId = null, active = false, dragged = false;
+  let sx = 0, sy = 0, pid = 0, holdT = 0, ghost = null, over = null;
+  const reduce = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function begin(e, id) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.target.closest('button,.check,.tag,input,.cat-picks')) return;
+    endListeners();
+    taskId = id; sx = e.clientX; sy = e.clientY; pid = e.pointerId;
+    active = false; dragged = false;
+    holdT = setTimeout(() => { if (taskId && !active) arm(sx, sy); }, HOLD);
+    document.addEventListener('pointermove', onMove, { passive: false });
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', reset);
+  }
+  function onMove(e) {
+    if (!taskId || e.pointerId !== pid) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (!active) {
+      if (Math.abs(dy) > SCROLL_DY && Math.abs(dy) > Math.abs(dx) * 1.2) { reset(); return; }
+      if (Math.hypot(dx, dy) >= MOVE) arm(e.clientX, e.clientY);
+      return;
+    }
+    e.preventDefault();
+    place(e.clientX, e.clientY);
+    hit(e.clientX, e.clientY);
+  }
+  function arm(x, y) {
+    const t = tasks.find(z => z.id === taskId); if (!t) return reset();
+    active = true; dragged = true;
+    clearTimeout(holdT);
+    document.body.classList.add('is-dragging');
+    const row = document.querySelector('.task[data-id="' + taskId + '"]');
+    if (row) { row.classList.add('is-drag-source'); try { row.setPointerCapture(pid); } catch (_) {} }
+    ghost = el('div', 'drag-ghost');
+    ghost.textContent = t.title || '(untitled)';
+    document.body.appendChild(ghost);
+    place(x, y); hit(x, y);
+  }
+  function place(x, y) {
+    if (!ghost) return;
+    const tilt = reduce() ? '' : ' rotate(-1.5deg)';
+    ghost.style.transform = 'translate(' + x + 'px,' + y + 'px) translate(-12%,-110%)' + tilt;
+  }
+  function hit(x, y) {
+    if (ghost) ghost.style.visibility = 'hidden';
+    const node = document.elementFromPoint(x, y);
+    if (ghost) ghost.style.visibility = '';
+    const btn = node && node.closest && node.closest('.cat-btn');
+    if (over && over !== btn) over.classList.remove('drop-over');
+    over = btn || null;
+    if (over) over.classList.add('drop-over');
+  }
+  async function onUp(e) {
+    if (e.pointerId !== pid) return;
+    const dest = over && over.dataset.cat;
+    const id = taskId;
+    const did = active;
+    reset();
+    if (did && dest && id) {
+      suppressCatClick = true;
+      await fileTask(id, dest);
+    }
+  }
+  function endListeners() {
+    clearTimeout(holdT); holdT = 0;
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', reset);
+  }
+  function reset() {
+    endListeners();
+    document.body.classList.remove('is-dragging');
+    document.querySelectorAll('.cat-btn.drop-over').forEach(n => n.classList.remove('drop-over'));
+    document.querySelectorAll('.task.is-drag-source').forEach(n => n.classList.remove('is-drag-source'));
+    if (ghost) ghost.remove();
+    ghost = null; over = null; taskId = null; active = false; pid = 0;
+  }
+  function consume() { const d = dragged; dragged = false; return d; }
+  return { begin, consume };
+})();
 // Undo stack — each delete is independently recoverable, so rapid deletes
 // don't clobber one another (audit finding 1c).
 const undoStack = [];
@@ -611,6 +871,7 @@ const Backup = (() => {
           id: t.id || uid(), title: t.title || '', raw: t.raw || t.title || '',
           tags: Array.isArray(t.tags) ? t.tags : [], due: t.due ?? null,
           hasTime: !!t.hasTime, done: !!t.done, created: t.created || Date.now(), completedAt: t.completedAt ?? null,
+          category: Classify.IDS.includes(t.category) ? t.category : null,
         }));
         if (mode === 'replace') { await STORE.clear(); tasks = norm; }
         else { // merge by id
@@ -710,12 +971,21 @@ function confetti() {
  * ============================================================ */
 function updateHint(raw) {
   const h = $('#hint');
-  if (!raw.trim()) { h.innerHTML = '<span style="opacity:.7">Tip: dates &amp; #tags are detected as you type.</span>'; return; }
+  if (!raw.trim()) { h.innerHTML = '<span style="opacity:.7">Tip: dates &amp; #tags are detected as you type.</span>'; pendingCat = null; return; }
   const p = Parse.parse(raw);
+  const s = Classify.suggest(p.title, p.tags, p.due, p.hasTime, catLearned, raw);
+  const selected = pendingCat || s.tagHit || (p.hasTime && s.top) || null;
   const bits = [];
   if (p.due != null) bits.push(`due <b>${esc(Dates.relLabel(p.due, p.hasTime))}</b>`);
   p.tags.forEach(t => bits.push(`<b>#${esc(t)}</b>`));
-  h.innerHTML = bits.length ? `→ ${esc(p.title || '(task)')} &nbsp;·&nbsp; ${bits.join(', ')}` : `→ ${esc(p.title)}`;
+  const picks = Classify.IDS.map(id => {
+    const on = selected === id;
+    const best = !selected && s.top === id;
+    return `<button type="button" class="cat-pick${on ? ' on' : ''}${best ? ' best' : ''}" data-pending-cat="${id}">${Classify.LABELS[id]}</button>`;
+  }).join('');
+  const lead = selected ? 'file in' : (s.top ? 'suggested' : 'box');
+  bits.push(`${lead} <span class="cat-picks-hint">${picks}</span>`);
+  h.innerHTML = `→ ${esc(p.title || '(task)')} &nbsp;·&nbsp; ${bits.join(' · ')}`;
 }
 
 /* ============================================================
@@ -775,7 +1045,8 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (document.querySelector('.sheet.on')) { closeSheets(); return; }
     if (editingId) { editingId = null; render(); return; }
-    if (query || tagFilter) { query=''; tagFilter=null; $('#search').value=''; render(); $('#search').blur(); return; }
+    if (catPickId) { catPickId = null; render(); return; }
+    if (query || tagFilter || catFilter) { query=''; tagFilter=null; catFilter=null; $('#search').value=''; render(); $('#search').blur(); return; }
     if (document.activeElement === $('#search') || document.activeElement === $('#add')) document.activeElement.blur();
     return;
   }
@@ -808,6 +1079,28 @@ function wire() {
   add.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addFromInput(add.value); } });
   $('#addBtn').onclick = () => addFromInput(add.value);
   updateHint('');
+
+  $('#hint').addEventListener('click', e => {
+    const b = e.target.closest('[data-pending-cat]'); if (!b) return;
+    const c = b.getAttribute('data-pending-cat');
+    pendingCat = pendingCat === c ? null : c;
+    updateHint(add.value);
+  });
+
+  $('#catStrip').addEventListener('click', e => {
+    if (suppressCatClick) { suppressCatClick = false; e.preventDefault(); e.stopPropagation(); return; }
+    const b = e.target.closest('.cat-btn'); if (!b) return;
+    const c = b.dataset.cat;
+    catFilter = catFilter === c ? null : c;
+    catPickId = null; sel = -1;
+    render();
+  });
+
+  document.addEventListener('click', e => {
+    if (!catPickId) return;
+    if (e.target.closest('.cat-picks, .cat-strip, .hint')) return;
+    catPickId = null; render();
+  });
 
   const search = $('#search');
   let st;
@@ -849,7 +1142,7 @@ function wire() {
     if (!tasks.length) { status('Nothing to clear.', ''); return; }
     if (!confirm(`Delete ALL ${tasks.length} task${tasks.length!==1?'s':''} on this device?\n\nThis cannot be undone. A snapshot will be downloaded first as a safety net.`)) return;
     Backup.download(); // safety snapshot before destruction
-    await STORE.clear(); tasks = []; sel = -1; undoStack.length = 0; render();
+    await STORE.clear(); tasks = []; sel = -1; undoStack.length = 0; catFilter = null; catPickId = null; pendingCat = null; render();
     status('All tasks cleared. A safety snapshot was downloaded.', 'ok');
   };
 }
@@ -870,6 +1163,16 @@ async function boot() {
   if (!tasks.length && !(await STORE.getMeta('seeded'))) {
     await STORE.setMeta('seeded', true);
   }
+  try {
+    const L = await STORE.getMeta('catLearned');
+    if (L && typeof L === 'object') {
+      catLearned = {
+        work: Array.isArray(L.work) ? L.work : [],
+        home: Array.isArray(L.home) ? L.home : [],
+        misc: Array.isArray(L.misc) ? L.misc : [],
+      };
+    }
+  } catch (e) {}
   await Backup.restoreHandle();
   render();
 }

@@ -67,6 +67,9 @@
   --gold: #a87f2e;
   --gold-soft: #cba35a;
   --maxw: 720px;
+  /* Search-bar lava plate. Stroke is a lifted blue-grey tint of the same rock. */
+  --lava-ink: rgb(22, 29, 41);
+  --lava-stroke: rgb(62, 88, 98);
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -107,7 +110,7 @@ header {
   background: color-mix(in srgb, var(--bg) 86%, transparent);
   backdrop-filter: saturate(150%) blur(12px);
   -webkit-backdrop-filter: saturate(150%) blur(12px);
-  padding: calc(18px + env(safe-area-inset-top)) 0 14px; margin-bottom: 4px;
+  padding: calc(10px + env(safe-area-inset-top)) 0 14px; margin-bottom: 4px;
   transition: padding .3s ease;
 }
 /* When the beach is on, the masthead lets the video show through (the title has
@@ -128,13 +131,17 @@ body.scene-on.scrolled header { background: color-mix(in srgb, var(--bg) 70%, tr
 }
 .privacy svg { width: 12px; height: 12px; color: var(--accent); }
 
-/* Control cluster: top-right, quiet until hovered */
-.controls { position: absolute; top: calc(16px + env(safe-area-inset-top)); right: 0; display: flex; align-items: center; gap: 8px; z-index: 2; opacity: .62; transition: opacity .2s ease; }
+/* Control cluster: above the banner, right-aligned — never over the title. */
+.controls {
+  position: relative; display: flex; align-items: center; justify-content: flex-end;
+  gap: 8px; width: 100%; margin: 0 0 8px; z-index: 2;
+  opacity: .62; transition: opacity .2s ease, margin .2s ease;
+}
 .controls:hover, .controls:focus-within { opacity: 1; }
 @media (max-width: 460px) { .controls .privacy { display: none; } }
 
 /* The poster block */
-.poster { text-align: center; padding: 14px 56px 4px; transition: all .3s ease; }
+.poster { text-align: center; padding: 10px 16px 4px; transition: all .3s ease; }
 .eyebrow {
   display: flex; align-items: center; justify-content: center; gap: 12px;
   font-size: 10.5px; font-weight: 600; letter-spacing: .34em; text-transform: uppercase;
@@ -153,11 +160,10 @@ body.scene-on.scrolled header { background: color-mix(in srgb, var(--bg) 70%, tr
 .tagline .dash { font-size: 14px; opacity: .65; }
 .tagline .script { font-family: var(--script); font-size: clamp(19px, 5vw, 25px); line-height: 1.1; color: var(--gold); white-space: nowrap; }
 
-/* Mobile: full-width poster, controls sit above it so the title has room. */
+/* Mobile: full-width poster. Controls already sit above it in flow. */
 @media (max-width: 560px) {
-  .poster { padding: 6px 8px 4px; }
-  header { padding-top: calc(52px + env(safe-area-inset-top)); }
-  .controls { top: calc(14px + env(safe-area-inset-top)); right: 0; }
+  .poster { padding: 8px 4px 4px; }
+  .controls { margin-bottom: 6px; gap: 6px; }
   .tagline .dash { display: none; }
 }
 @media (max-width: 360px) {
@@ -168,8 +174,9 @@ body.scene-on.scrolled header { background: color-mix(in srgb, var(--bg) 70%, tr
 }
 
 /* Collapse-on-scroll: when body has .scrolled, the poster shrinks to a slim bar. */
-body.scrolled header { padding: 10px 0 10px; }
-body.scrolled .poster { padding: 0 56px; }
+body.scrolled header { padding: calc(8px + env(safe-area-inset-top)) 0 8px; }
+body.scrolled .poster { padding: 0 8px; }
+body.scrolled .controls { margin-bottom: 6px; }
 body.scrolled .eyebrow, body.scrolled .tagline { opacity: 0; max-height: 0; margin: 0; overflow: hidden; pointer-events: none; }
 body.scrolled .poster-title { font-size: clamp(18px, 5vw, 22px); letter-spacing: .04em; }
 .eyebrow, .tagline { transition: opacity .25s ease, max-height .3s ease, margin .3s ease; max-height: 40px; }
@@ -189,6 +196,87 @@ body.scrolled .poster-title { font-size: clamp(18px, 5vw, 22px); letter-spacing:
   font-family: var(--mono); font-size: 10.5px; color: var(--text-faint);
   background: var(--surface); border: 1px solid var(--line); border-bottom-width: 2px;
   border-radius: 5px; padding: 1px 5px; line-height: 1.4;
+}
+
+/* ---- Category boxes (Work / Home / Misc) — suggest, never auto-file ---- */
+.cat-strip {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  justify-items: center; align-items: center;
+  margin-top: 10px; width: 100%;
+}
+.cat-btn {
+  appearance: none; background: transparent; border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--lava-stroke); cursor: pointer; font: inherit;
+  width: 108px; height: 108px; box-sizing: border-box; flex: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 8px 4px 6px;
+  transition: border-color .22s ease, color .18s ease;
+}
+.cat-btn:hover { color: rgb(55, 77, 86); }
+.cat-btn[aria-expanded="true"] { border-bottom-color: var(--accent); color: var(--lava-stroke); }
+.cat-btn svg {
+  width: 48px; height: 48px; flex: none; fill: none;
+  background: transparent; overflow: visible; transition: transform .22s ease;
+}
+.cat-btn[aria-expanded="true"] svg { transform: translateY(-1px); }
+.cat-label {
+  display: flex; flex-flow: row nowrap; align-items: baseline; justify-content: center;
+  gap: 7px; white-space: nowrap; flex-shrink: 0;
+  font-family: var(--display); font-size: 14px; font-weight: 500;
+  letter-spacing: .08em; text-transform: uppercase; line-height: 1;
+  color: rgba(241, 243, 246, 0.95);
+  background: rgba(16, 22, 32, 0.7);
+  padding: 5px 12px 6px; border-radius: 99px;
+  transition: background .18s ease;
+}
+.cat-btn:hover .cat-label { background: rgba(16, 22, 32, 0.82); }
+.cat-btn[aria-expanded="true"] .cat-label { background: rgba(16, 22, 32, 0.86); }
+.cat-name { letter-spacing: .08em; }
+.cat-n {
+  font-family: var(--display); font-weight: 500; letter-spacing: 0;
+  font-variant-numeric: tabular-nums; color: inherit; min-width: 0.8em;
+}
+
+.hint .cat-picks-hint { display: inline-flex; align-items: baseline; gap: 2px; }
+.hint .cat-pick {
+  appearance: none; background: none; border: none; cursor: pointer; font: inherit;
+  font-size: 12.5px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-faint); padding: 2px 8px; border-radius: 4px;
+}
+.hint .cat-pick:hover { color: var(--text); }
+.hint .cat-pick.best { color: var(--accent); }
+.hint .cat-pick.on { color: var(--accent); }
+.cat-picks { display: inline-flex; align-items: center; gap: 1px; }
+.cat-mark, .cat-pick-row {
+  appearance: none; border: none; background: none; color: var(--text-faint);
+  width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center;
+  cursor: pointer; padding: 0; flex: none;
+}
+.cat-mark svg, .cat-pick-row svg { width: 15px; height: 15px; }
+.cat-mark:hover, .cat-pick-row:hover { background: var(--surface-2); color: var(--text); }
+.cat-mark.filed { color: var(--accent); }
+.cat-mark.suggest { opacity: .48; }
+.cat-pick-row.best { color: var(--text-2); }
+.cat-pick-row.on { color: var(--accent); }
+
+.task.is-drag-source { opacity: .38; }
+body.is-dragging { cursor: grabbing; user-select: none; }
+body.is-dragging .task { cursor: grabbing; }
+body.is-dragging .cat-btn.drop-over { transform: translateY(-3px); }
+body.is-dragging .cat-btn.drop-over svg { transform: scale(1.08); }
+body.is-dragging .cat-btn.drop-over .cat-label {
+  background: rgba(16, 22, 32, 0.9);
+  box-shadow: 0 0 0 1.5px var(--accent);
+}
+.drag-ghost {
+  position: fixed; left: 0; top: 0; z-index: 80; pointer-events: none;
+  max-width: min(280px, 72vw); padding: 10px 14px;
+  font-size: 14.5px; font-weight: 500; color: #f1f3f6;
+  background: linear-gradient(180deg, rgba(22,29,41,.92), rgba(14,19,28,.95));
+  border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  will-change: transform;
 }
 
 /* ---- Quick add ---- */
@@ -224,7 +312,8 @@ body.scrolled .poster-title { font-size: clamp(18px, 5vw, 22px); letter-spacing:
 /* ---- Task row ---- */
 .task {
   display: flex; align-items: flex-start; gap: 12px; padding: 11px 12px;
-  border-radius: var(--radius-sm); cursor: default; transition: background .12s ease; position: relative;
+  border-radius: var(--radius-sm); cursor: grab; touch-action: pan-y;
+  transition: background .12s ease, opacity .18s ease; position: relative;
 }
 .task:hover { background: var(--surface); }
 .task.sel { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
@@ -315,6 +404,7 @@ body.scrolled .poster-title { font-size: clamp(18px, 5vw, 22px); letter-spacing:
 .sheet .sub { font-size: 12.5px; color: var(--text-2); margin-bottom: 18px; }
 .sheet .group { margin-bottom: 16px; }
 .sheet .group h3 { font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 9px; }
+.sheet .group > p { font-size: 12.5px; color: var(--text-2); line-height: 1.45; }
 .opt { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line-soft); }
 .opt:first-of-type { border-top: none; }
 .opt .txt { flex: 1; }
@@ -423,8 +513,9 @@ body.scene-on .empty .ring { box-shadow: 0 0 16px var(--bg); }
 body.scene-on .poster {
   background: linear-gradient(180deg, rgba(22,29,41,.82), rgba(14,19,28,.86));
   border-radius: 16px; box-shadow: 0 6px 26px rgba(0,0,0,.28);
-  padding: 16px 56px 14px; margin: 4px 0 2px;
+  padding: 14px 20px 12px; margin: 4px 0 2px;
 }
+body.scene-on.scrolled .poster { padding: 8px 16px; margin: 0 0 2px; }
 body.scene-on .poster .poster-title { color: #f4f5f7; text-shadow: 0 2px 14px rgba(0,0,0,.4); }
 body.scene-on .poster .eyebrow, body.scene-on .poster .tagline .script, body.scene-on .poster .tagline { color: var(--gold-soft); }
 body.scene-on .add {
@@ -443,6 +534,26 @@ body.scene-on .search input {
 body.scene-on .search input::placeholder { color: rgba(226,232,240,.6); }
 body.scene-on .search .s-ico { color: rgba(226,232,240,.55); }
 body.scene-on .search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+body.scene-on .cat-btn { color: var(--lava-stroke); background: transparent; }
+body.scene-on .cat-btn:hover { color: rgb(55, 77, 86); }
+body.scene-on .cat-btn[aria-expanded="true"] { color: var(--lava-stroke); }
+body.scene-on .cat-btn svg { fill: none; background: transparent; filter: none; }
+body.scene-on .cat-label { color: rgba(241, 243, 246, 0.95); }
+@media (max-width: 400px) {
+  .cat-btn { width: 96px; height: 96px; }
+  .cat-btn svg { width: 42px; height: 42px; }
+  .cat-label { font-size: 13px; padding: 4px 10px 5px; }
+}
+@media (prefers-color-scheme: dark) {
+  body:not(.scene-on) .cat-btn { color: var(--lava-stroke); }
+}
+body.scene-on .hint { color: rgba(226,232,240,.72); text-shadow: 0 1px 8px rgba(0,0,0,.4); }
+body.scene-on .hint .cat-pick { color: rgba(226,232,240,.5); text-shadow: none; }
+body.scene-on .hint .cat-pick.best { color: var(--accent); }
+body.scene-on .hint .cat-pick.on { color: var(--accent); }
+body.scene-on .cat-mark, body.scene-on .cat-pick-row { color: rgba(226,232,240,.55); }
+body.scene-on .cat-mark.filed, body.scene-on .cat-pick-row.on { color: var(--accent); }
+body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: rgba(255,255,255,.08); color: #f4f5f7; }
 
 /* Ambient toggle button: show the icon matching its state */
 /* Sound toggle: show the icon matching on/off; accent border when on. */
@@ -476,7 +587,7 @@ body.scene-on .search input:focus { border-color: var(--accent); box-shadow: 0 0
   "image": "https://stewalexander-com.github.io/tropical-todo-list/icons/og-image.jpg",
   "author": { "@type": "Organization", "name": "StewAlexander.com" },
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-  "featureList": ["Natural-language dates and #tags", "Fuzzy search", "Offline-first PWA", "Local-only private storage", "Backup and restore"]
+  "featureList": ["Natural-language dates and #tags", "Suggested Work / Home / Misc boxes (you choose)", "Fuzzy search", "Offline-first PWA", "Local-only private storage", "Backup and restore"]
 }
 </script>
 </head>
@@ -527,6 +638,21 @@ body.scene-on .search input:focus { border-color: var(--accent); box-shadow: 0 0
       <input id="search" type="text" placeholder="Search tasks, #tags, notes…" autocomplete="off" spellcheck="false" aria-label="Search" />
       <span class="kbd s-key">/</span>
     </div>
+
+    <nav class="cat-strip" id="catStrip" aria-label="Work, Home, and Misc">
+      <button type="button" class="cat-btn" data-cat="work" id="catBtnWork" aria-expanded="false" aria-controls="list">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7.5" r="2.7"/><path d="M12 3v1.1M17.4 7.5h1.1M5.5 7.5h1.1M16.2 3.7l.7-.7M7.1 3.7l-.7-.7"/><path d="M4 14.5h16"/><path d="M6 14.5V19M10 14.5v3.2M14 14.5v3.2M18 14.5V19"/><path d="M4 19h16"/></svg>
+        <span class="cat-label"><span class="cat-name">Work</span> <span class="cat-n" id="catNWork">0</span></span>
+      </button>
+      <button type="button" class="cat-btn" data-cat="home" id="catBtnHome" aria-expanded="false" aria-controls="list">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 13 12 5.5 20.5 13"/><path d="M5.8 13 12 7.8 18.2 13"/><path d="M7.5 13v6.5M16.5 13v6.5"/><path d="M5 19.5h14"/><path d="M12 5.5v2"/></svg>
+        <span class="cat-label"><span class="cat-name">Home</span> <span class="cat-n" id="catNHome">0</span></span>
+      </button>
+      <button type="button" class="cat-btn" data-cat="misc" id="catBtnMisc" aria-expanded="false" aria-controls="list">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 16.5c-3.8.2-6.7-2.4-6.7-5.6 0-3.4 2.7-5.6 5.6-5.2 2.2.3 3.7 2.2 3.7 4.4 0 1.9-1.3 3.4-3 3.4-1.3 0-2.3-.9-2.3-2.1 0-.9.6-1.6 1.5-1.6"/><path d="M15.8 14.8c1.6 1.2 3.4 1.6 4.6.6"/><path d="M8.2 17.2c-1.3.9-3 .7-3.8-.6"/><path d="M9.2 8.2c-.8-1.2-1-2.6-.2-3.4"/></svg>
+        <span class="cat-label"><span class="cat-name">Misc</span> <span class="cat-n" id="catNMisc">0</span></span>
+      </button>
+    </nav>
   </header>
 
   <div class="add">
@@ -623,6 +749,10 @@ body.scene-on .search input:focus { border-color: var(--accent); box-shadow: 0 0
       <div>Time <span class="kbd">3pm</span></div>
       <div>Next week <span class="kbd">next week</span></div>
     </div>
+  </div>
+  <div class="group">
+    <h3>Work · Home · Misc</h3>
+    <p>A time is parsed and files a box (3pm on a weekday → Work). Drag any task onto Work, Home, or Misc. Or tap the row icon. <span class="kbd">#work</span> <span class="kbd">#home</span> <span class="kbd">#misc</span> also files. Click a box to open it.</p>
   </div>
 </div>
 

@@ -1,7 +1,7 @@
 /* Quiet service worker — offline-first app shell.
  * Bumps cache version on each release so updates land. App data lives in
  * IndexedDB (not the cache), so clearing caches never touches your tasks. */
-const CACHE = 'quiet-v20';
+const CACHE = 'quiet-v25';
 /* Code files are served network-first so the running JS always matches the
    freshly-fetched HTML. (A stale cached ambient.js paired with new markup was
    leaving the desktop background blank.) Cached copies are kept only as an
