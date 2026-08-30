@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
-    <loc>https://stewalexander-com.github.io/tropical-todo-list/</loc>
+    <loc>https://troplist.com/</loc>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://troplist.com/icons/og-image.jpg</image:loc>
+      <image:title>Tropical ToDos</image:title>
+    </image:image>
   </url>
 </urlset>

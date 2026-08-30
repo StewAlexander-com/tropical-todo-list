@@ -1,3 +1,4 @@
 User-agent: *
 Allow: /
-Sitemap: https://stewalexander-com.github.io/tropical-todo-list/sitemap.xml
+
+Sitemap: https://troplist.com/sitemap.xml

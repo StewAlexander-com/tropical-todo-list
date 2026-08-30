@@ -4,7 +4,7 @@
 
 ### A calm, local-first to-do list with a cinematic beach backdrop and gentle ocean waves.
 
-**▶ Live app: [stewalexander-com.github.io/tropical-todo-list](https://stewalexander-com.github.io/tropical-todo-list/)**
+**▶ Live app: [troplist.com](https://troplist.com/)**
 
 <img src="docs/screenshot.png" alt="Tropical ToDos — a vintage poster masthead over a cinematic beach video, with tasks on dark lava-rock pills" width="420" />
 
@@ -37,7 +37,7 @@ This is *private-by-no-network*. Data is stored in your browser's IndexedDB and 
 
 ## Install
 
-Open the [live app](https://stewalexander-com.github.io/tropical-todo-list/) and use your browser's **Install** / **Add to Home Screen** option. It launches full-screen as **Tropical ToDos**.
+Open [troplist.com](https://troplist.com/) and use your browser's **Install** / **Add to Home Screen** option. It launches full-screen as **Tropical ToDos**.
 
 ## Run it yourself / deploy
 
