@@ -1,0 +1,19 @@
+# Tropical ToDos
+> A calm, local-first to-do list with a cinematic beach backdrop. Private by design — tasks stay in your browser.
+
+Canonical: https://troplist.com/
+
+## Product
+- Natural-language quick-add (dates, times, #tags)
+- Work / Home / Misc boxes (suggest + drag-and-drop; time can auto-file)
+- Date buckets: Overdue, Today, This Week, Later, Someday
+- Fuzzy search, keyboard-first, offline PWA
+- Backup/restore JSON; optional folder auto-backup
+
+## Privacy
+No account. No server-side task storage. Data lives in IndexedDB on the device.
+
+## Links
+- App: https://troplist.com/
+- Source: https://github.com/StewAlexander-com/tropical-todo-list
+- Sitemap: https://troplist.com/sitemap.xml

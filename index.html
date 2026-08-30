@@ -27,6 +27,7 @@
 <meta property="og:description" content="A private to-do list with a cinematic beach backdrop and gentle ocean waves. Natural-language tasks, offline-first, your data never leaves your device." />
 <meta property="og:url" content="https://troplist.com/" />
 <meta property="og:image" content="https://troplist.com/icons/og-image.jpg" />
+<meta property="og:image:type" content="image/jpeg" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta property="og:image:alt" content="Tropical ToDos — palm tree, sun, and turquoise sea" />
@@ -36,6 +37,7 @@
 <meta name="twitter:title" content="Tropical ToDos — a calm, local-first to-do list" />
 <meta name="twitter:description" content="A private to-do list with a cinematic beach backdrop and gentle ocean waves. Offline-first; your data never leaves your device." />
 <meta name="twitter:image" content="https://troplist.com/icons/og-image.jpg" />
+<meta name="twitter:image:alt" content="Tropical ToDos — palm tree, sun, and turquoise sea" />
 
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
@@ -585,14 +587,67 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
   "@context": "https://schema.org",
   "@type": "WebApplication",
   "name": "Tropical ToDos",
+  "alternateName": "troplist",
   "applicationCategory": "ProductivityApplication",
   "operatingSystem": "Any (Progressive Web App)",
+  "browserRequirements": "Requires JavaScript. Works offline after first visit.",
   "description": "A calm, local-first to-do list with a cinematic beach backdrop and gentle ocean waves. Natural-language tasks, fuzzy search, offline-first. Your tasks never leave your device.",
   "url": "https://troplist.com/",
   "image": "https://troplist.com/icons/og-image.jpg",
-  "author": { "@type": "Organization", "name": "StewAlexander.com" },
+  "author": {
+    "@type": "Person",
+    "name": "Stewart Alexander",
+    "url": "https://stewalexander.com"
+  },
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-  "featureList": ["Natural-language dates and #tags", "Suggested Work / Home / Misc boxes (you choose)", "Fuzzy search", "Offline-first PWA", "Local-only private storage", "Backup and restore"]
+  "featureList": [
+    "Natural-language dates and #tags",
+    "Suggested Work / Home / Misc boxes (you choose)",
+    "Fuzzy search",
+    "Offline-first PWA",
+    "Local-only private storage",
+    "Backup and restore"
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is Tropical ToDos?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Tropical ToDos is a calm, local-first to-do list that runs entirely in your browser as a progressive web app. It has a cinematic beach backdrop, natural-language quick-add for dates and tags, Work / Home / Misc boxes, and fuzzy search."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Tropical ToDos send my tasks to a server?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Tasks are stored only in your browser (IndexedDB). There is no account and no server-side task database. Optional backups are files you export or a folder you grant on your device."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it work offline?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. After the first visit, the app shell is cached by a service worker so you can use Tropical ToDos without a network connection."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What are the Work, Home, and Misc boxes?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Three optional boxes under search. Wording suggests a box; you file the task by tapping, dragging, or using #work, #home, or #misc. If you include a time in the title, the suggested box can be filed automatically, and you can override it before adding."
+      }
+    }
+  ]
 }
 </script>
 </head>
