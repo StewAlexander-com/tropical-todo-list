@@ -608,10 +608,26 @@ function catControls(t) {
 
 function emptyState() {
   const e = el('div', 'empty');
-  if (query) e.innerHTML = `<div class="ring">${ICON.leaf}</div><h3>No matches</h3><p>Nothing matches “${esc(query)}”. Try fewer letters.</p>`;
-  else if (tagFilter) e.innerHTML = `<div class="ring">${ICON.leaf}</div><h3>Nothing tagged #${esc(tagFilter)}</h3><p>Clear the filter to see everything.</p>`;
-  else if (catFilter) e.innerHTML = `<div class="ring">${ICON[catFilter]}</div><h3>Nothing in ${esc(Classify.LABELS[catFilter])}</h3><p>Wording only suggests a box. File a task here when you choose.</p>`;
-  else e.innerHTML = `<div class="ring">${ICON.leaf}</div><h3>A clear mind</h3><p>No tasks yet. Type one above — dates and #tags are parsed automatically.</p>`;
+  if (query) {
+    e.innerHTML = `<div class="ring">${ICON.leaf}</div><h3>No matches</h3><p>Nothing matches “${esc(query)}”.</p><p><button type="button" class="nudge-link" id="emptyAddQuery">Add “${esc(query)}” as a task</button></p>`;
+  } else if (tagFilter) {
+    e.innerHTML = `<div class="ring">${ICON.leaf}</div><h3>Nothing tagged #${esc(tagFilter)}</h3><p>Clear the filter to see everything.</p>`;
+  } else if (catFilter) {
+    e.innerHTML = `<div class="ring">${ICON[catFilter]}</div><h3>Nothing in ${esc(Classify.LABELS[catFilter])}</h3><p>Wording only suggests a box. File a task here when you choose.</p>`;
+  } else {
+    e.innerHTML = `<div class="ring">${ICON.leaf}</div><h3>A clear mind</h3><p>No tasks yet.</p><p><button type="button" class="nudge-link" id="emptyFocusAdd">Add your first task</button></p>`;
+  }
+  // Wire empty CTAs after insert (caller appends first)
+  requestAnimationFrame(() => {
+    const a = $('#emptyFocusAdd');
+    if (a) a.onclick = () => { $('#add').focus(); };
+    const q = $('#emptyAddQuery');
+    if (q) q.onclick = () => {
+      const text = query;
+      query = ''; $('#search').value = '';
+      addFromInput(text);
+    };
+  });
   return e;
 }
 
@@ -642,7 +658,12 @@ function boxForParsed(p, raw, userPick) {
   return null;
 }
 async function addFromInput(raw) {
-  raw = raw.trim(); if (!raw) return;
+  raw = String(raw || '').trim();
+  if (!raw) {
+    pokeField($('#addWrap'), 'Type a task first');
+    $('#add').focus();
+    return;
+  }
   const p = Parse.parse(raw);
   const category = boxForParsed(p, raw, pendingCat);
   const t = { id: uid(), title: cleanTitle(p), raw, tags: p.tags, due: p.due, hasTime: p.hasTime, done: false, created: Date.now(), category: category || null };
@@ -650,10 +671,27 @@ async function addFromInput(raw) {
   pendingCat = null;
   tasks.push(t);
   await STORE.put(t);
-  $('#add').value = ''; updateHint('');
+  $('#add').value = ''; updateHint(''); syncAddIdle();
   query = ''; $('#search').value = '';
   tagFilter = null; catFilter = null; catPickId = null;
   render(); afterChange();
+}
+
+function pokeField(node, msg) {
+  if (!node) return;
+  node.classList.remove('poke');
+  void node.offsetWidth;
+  node.classList.add('poke');
+  const clear = () => node.classList.remove('poke');
+  node.addEventListener('animationend', clear, { once: true });
+  setTimeout(clear, 400);
+  if (msg) toast(msg);
+}
+function syncAddIdle() {
+  const wrap = $('#addWrap');
+  const add = $('#add');
+  if (!wrap || !add) return;
+  wrap.classList.toggle('is-idle', !add.value.trim());
 }
 async function toggle(id) {
   const t = tasks.find(x => x.id === id); if (!t) return;
@@ -971,7 +1009,11 @@ function confetti() {
  * ============================================================ */
 function updateHint(raw) {
   const h = $('#hint');
-  if (!raw.trim()) { h.innerHTML = '<span style="opacity:.7">Tip: dates &amp; #tags are detected as you type.</span>'; pendingCat = null; return; }
+  if (!raw.trim()) {
+    h.innerHTML = '<span class="hint-idle">New tasks go here · try “Call Mom Friday 3pm”</span>';
+    pendingCat = null;
+    return;
+  }
   const p = Parse.parse(raw);
   const s = Classify.suggest(p.title, p.tags, p.due, p.hasTime, catLearned, raw);
   const selected = pendingCat || s.tagHit || (p.hasTime && s.top) || null;
@@ -1075,10 +1117,21 @@ document.addEventListener('keydown', e => {
  * ============================================================ */
 function wire() {
   const add = $('#add');
-  add.addEventListener('input', () => updateHint(add.value));
-  add.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addFromInput(add.value); } });
-  $('#addBtn').onclick = () => addFromInput(add.value);
+  const addWrap = $('#addWrap');
+  const search = $('#search');
+  const searchWrap = $('#searchWrap');
+
+  const tryAdd = () => addFromInput(add.value);
+  add.addEventListener('input', () => { updateHint(add.value); syncAddIdle(); });
+  add.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tryAdd(); } });
+  $('#addBtn').onclick = tryAdd;
+  // + is a real control: submit if typed, else focus the field
+  $('#addPlus').onclick = () => {
+    if (add.value.trim()) tryAdd();
+    else { add.focus(); pokeField(addWrap, 'Type a task, then Add'); }
+  };
   updateHint('');
+  syncAddIdle();
 
   $('#hint').addEventListener('click', e => {
     const b = e.target.closest('[data-pending-cat]'); if (!b) return;
@@ -1102,9 +1155,38 @@ function wire() {
     catPickId = null; render();
   });
 
-  const search = $('#search');
   let st;
-  search.addEventListener('input', () => { query = search.value.trim(); clearTimeout(st); st = setTimeout(() => { sel=-1; render(); }, 70); });
+  search.addEventListener('input', () => {
+    query = search.value.trim();
+    clearTimeout(st);
+    st = setTimeout(() => { sel = -1; render(); }, 70);
+  });
+  // Enter in search: empty → nudge; no matches → offer to add (people type tasks here)
+  search.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const q = search.value.trim();
+    if (!q) {
+      if (!tasks.length) {
+        pokeField(searchWrap, 'Add a task below to get started');
+        add.focus();
+      } else {
+        pokeField(searchWrap, 'Type to find in your list');
+      }
+      return;
+    }
+    query = q;
+    render();
+    const hits = tasks.filter(matches);
+    if (!hits.length) {
+      toast('No matches', 'Add as task', () => {
+        const text = q;
+        query = ''; search.value = '';
+        addFromInput(text);
+      });
+      pokeField(searchWrap);
+    }
+  });
 
   $('#btnBackup').onclick = () => openSheet('backupSheet');
   $('#lnkBackup').onclick = () => openSheet('backupSheet');

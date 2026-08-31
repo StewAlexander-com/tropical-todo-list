@@ -189,16 +189,17 @@ body.scrolled .poster-title { font-size: clamp(18px, 5vw, 22px); letter-spacing:
 .eyebrow, .tagline { transition: opacity .25s ease, max-height .3s ease, margin .3s ease; max-height: 40px; }
 .poster-title { transition: font-size .3s ease, letter-spacing .3s ease; }
 
-/* ---- Search ---- */
+/* ---- Search (secondary find — quieter than the add row) ---- */
 .search { position: relative; margin-top: 12px; }
-.search svg.s-ico { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-faint); pointer-events: none; }
+.search svg.s-ico { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--text-faint); pointer-events: none; opacity: .85; }
 .search input {
-  width: 100%; font: inherit; font-size: 14px; color: var(--text);
+  width: 100%; font: inherit; font-size: 13.5px; color: var(--text);
   background: var(--surface-2); border: 1px solid transparent; border-radius: var(--radius-sm);
-  padding: 9px 12px 9px 36px; outline: none; transition: all .15s ease;
+  padding: 8px 36px 8px 34px; outline: none; transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
+.search input::placeholder { color: var(--text-faint); letter-spacing: .01em; }
 .search input:focus { background: var(--surface); border-color: var(--line); box-shadow: 0 0 0 3px var(--accent-soft); }
-.search .kbd { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
+.search .kbd { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); opacity: .72; }
 .kbd {
   font-family: var(--mono); font-size: 10.5px; color: var(--text-faint);
   background: var(--surface); border: 1px solid var(--line); border-bottom-width: 2px;
@@ -286,25 +287,67 @@ body.is-dragging .cat-btn.drop-over .cat-label {
   will-change: transform;
 }
 
-/* ---- Quick add ---- */
+/* ---- Quick add (primary compose — louder than search) ---- */
 .add {
-  display: flex; align-items: center; gap: 10px; margin: 14px 0 6px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 4px 4px 4px 14px; box-shadow: var(--shadow); transition: border-color .15s ease, box-shadow .15s ease;
+  display: flex; align-items: center; gap: 6px; margin: 16px 0 6px;
+  background: var(--surface); border: 1.5px solid var(--line); border-radius: var(--radius);
+  padding: 5px 5px 5px 6px; box-shadow: var(--shadow);
+  transition: border-color .18s ease, box-shadow .18s ease, transform .28s ease;
 }
-.add:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.add .plus { color: var(--text-faint); width: 18px; height: 18px; flex: none; }
+.add:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft), 0 6px 20px rgba(20,22,26,.06);
+  transform: translateY(-1px);
+}
+.add .plus-btn {
+  appearance: none; border: none; background: transparent; color: var(--text-faint);
+  width: 38px; height: 38px; border-radius: 10px; cursor: pointer; flex: none;
+  display: grid; place-items: center; transition: color .14s ease, background .14s ease, transform .14s ease;
+}
+.add .plus-btn:hover, .add .plus-btn:focus-visible { color: var(--accent); background: var(--accent-soft); outline: none; }
+.add:not(.is-idle) .plus-btn { color: var(--accent); }
+.add .plus { width: 18px; height: 18px; display: block; }
 .add input {
-  flex: 1; font: inherit; font-size: 15px; color: var(--text); background: none; border: none; outline: none; padding: 9px 0; min-width: 0;
+  flex: 1; font: inherit; font-size: 15.5px; font-weight: 450; color: var(--text);
+  background: none; border: none; outline: none; padding: 10px 2px; min-width: 0;
+  letter-spacing: -.005em;
 }
-.add input::placeholder { color: var(--text-faint); }
-.add button {
-  appearance: none; border: none; background: var(--accent); color: #fff; font: inherit; font-size: 13px; font-weight: 600;
-  padding: 8px 14px; border-radius: var(--radius-sm); cursor: pointer; transition: opacity .15s ease; flex: none;
+.add input::placeholder { color: var(--text-faint); font-weight: 400; }
+.add #addBtn {
+  appearance: none; border: none; background: var(--accent); color: #fff; font: inherit; font-size: 13px; font-weight: 650;
+  letter-spacing: .02em; padding: 9px 15px; border-radius: var(--radius-sm); cursor: pointer;
+  transition: opacity .15s ease, background .18s ease, color .18s ease, transform .14s ease; flex: none;
 }
-.add button:hover { opacity: .9; }
-.hint { font-size: 11.5px; color: var(--text-faint); padding: 0 2px; min-height: 16px; line-height: 1.4; }
+.add #addBtn:hover { opacity: .92; }
+.add:not(.is-idle) #addBtn:active { transform: scale(.97); }
+.add.is-idle #addBtn {
+  background: var(--surface-2); color: var(--text-2); opacity: 1;
+}
+.add.is-idle #addBtn:hover { background: var(--line-soft); color: var(--text); }
+.hint { font-size: 11.5px; color: var(--text-faint); padding: 1px 4px 0; min-height: 17px; line-height: 1.45; }
+.hint .hint-idle { opacity: .78; letter-spacing: .005em; }
 .hint b { color: var(--accent); font-weight: 600; }
+.hint .nudge-link, .empty .nudge-link {
+  appearance: none; border: none; background: none; color: var(--accent); font: inherit; font-size: inherit;
+  font-weight: 650; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 2.5px;
+  text-decoration-thickness: 1px;
+}
+.hint .nudge-link:hover, .empty .nudge-link:hover { color: var(--text); }
+
+/* Poke-yoke micro-feedback — no new chrome, just motion */
+@keyframes poke-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2.5px); }
+  50% { transform: translateX(2.5px); }
+  75% { transform: translateX(-1.5px); }
+}
+.add.poke, .search.poke { animation: poke-shake .3s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .add.poke, .search.poke { animation: none; outline: 2px solid var(--accent); outline-offset: 2px; }
+  .add:focus-within { transform: none; }
+}
+.search { transition: transform .28s ease; }
+.empty .nudge-link { margin-top: 6px; display: inline-block; }
 
 /* ---- Buckets ---- */
 .bucket { margin-top: 26px; }
@@ -372,8 +415,11 @@ body.is-dragging .cat-btn.drop-over .cat-label {
 .empty .ring { width: 54px; height: 54px; margin: 0 auto 18px; border-radius: 50%; border: 2px dashed var(--line); display: grid; place-items: center; color: var(--text-faint); animation: breathe 4s ease-in-out infinite; }
 .empty .ring svg { width: 22px; height: 22px; }
 @keyframes breathe { 0%,100% { transform: scale(1); opacity:.7 } 50% { transform: scale(1.06); opacity:1 } }
-.empty h3 { font-size: 15px; color: var(--text-2); font-weight: 600; margin-bottom: 5px; }
-.empty p { font-size: 13px; max-width: 32ch; margin: 0 auto; }
+.empty h3 {
+  font-family: var(--display); font-size: 17px; font-weight: 500; letter-spacing: .045em;
+  color: var(--text-2); margin-bottom: 6px;
+}
+.empty p { font-size: 13px; max-width: 34ch; margin: 0 auto; line-height: 1.45; }
 .activefilter { display: none; align-items: center; gap: 8px; margin-top: 14px; font-size: 12.5px; color: var(--text-2); }
 .activefilter.on { display: flex; }
 .activefilter .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); color: var(--accent); padding: 3px 6px 3px 10px; border-radius: 99px; font-weight: 600; }
@@ -433,15 +479,24 @@ body.is-dragging .cat-btn.drop-over .cat-label {
 .help-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 18px; }
 .help-grid div { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--text-2); }
 
-/* toast */
-.toast { position: fixed; bottom: 64px; left: 50%; transform: translate(-50%, 16px); z-index: 50; opacity: 0; pointer-events: none;
-  background: var(--text); color: var(--bg); font-size: 13px; font-weight: 500; padding: 9px 16px; border-radius: 99px; box-shadow: var(--shadow);
-  transition: all .22s cubic-bezier(.22,1,.36,1); display: flex; align-items: center; gap: 12px; }
+/* toast — calm capsule, action as clear secondary beat */
+.toast { position: fixed; bottom: 64px; left: 50%; transform: translate(-50%, 12px); z-index: 50; opacity: 0; pointer-events: none;
+  background: var(--text); color: var(--bg); font-size: 13px; font-weight: 500; padding: 10px 14px 10px 16px;
+  border-radius: 14px; box-shadow: 0 8px 28px rgba(20,22,26,.18);
+  transition: opacity .22s cubic-bezier(.22,1,.36,1), transform .22s cubic-bezier(.22,1,.36,1);
+  display: flex; align-items: center; gap: 10px; max-width: min(92vw, 420px); }
 /* Toast itself stays pointer-events:none so it never blocks clicks on content
    beneath it; only its button is interactive (audit finding 1g). */
 .toast.on { opacity: 1; transform: translate(-50%, 0); }
-.toast button { appearance: none; border: none; background: none; color: var(--accent); font: inherit; font-weight: 650; cursor: pointer; pointer-events: auto; }
-@media (prefers-color-scheme: dark) { .toast button { color: var(--accent); } }
+.toast button {
+  appearance: none; border: none; cursor: pointer; pointer-events: auto; flex: none;
+  font: inherit; font-size: 12.5px; font-weight: 650; letter-spacing: .01em;
+  color: #fff; background: color-mix(in srgb, var(--accent) 88%, #000);
+  padding: 5px 10px; border-radius: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  .toast button { color: #0f1115; background: color-mix(in srgb, var(--accent) 92%, #fff); }
+}
 
 /* ============================================================
    Ambient beach scene — CINEMATIC VIDEO (dual crossfade loop, rain-view pattern).
@@ -529,13 +584,29 @@ body.scene-on.scrolled .poster { padding: 8px 16px; margin: 0 0 2px; }
 body.scene-on .poster .poster-title { color: #f4f5f7; text-shadow: 0 2px 14px rgba(0,0,0,.4); }
 body.scene-on .poster .eyebrow, body.scene-on .poster .tagline .script, body.scene-on .poster .tagline { color: var(--gold-soft); }
 body.scene-on .add {
-  background: linear-gradient(180deg, rgba(22,29,41,.86), rgba(14,19,28,.9));
-  border-color: rgba(255,255,255,.12);
+  background: linear-gradient(180deg, rgba(22,29,41,.9), rgba(14,19,28,.94));
+  border-color: rgba(255,255,255,.16);
+  box-shadow: 0 8px 28px rgba(0,0,0,.32);
 }
 body.scene-on .add input { color: #f4f5f7; }
-body.scene-on .add input::placeholder { color: rgba(226,232,240,.6); }
-body.scene-on .add .plus { color: rgba(226,232,240,.6); }
-body.scene-on .add:focus-within { border-color: var(--accent); }
+body.scene-on .add input::placeholder { color: rgba(226,232,240,.62); }
+body.scene-on .add .plus-btn { color: rgba(226,232,240,.7); }
+body.scene-on .add .plus-btn:hover, body.scene-on .add .plus-btn:focus-visible {
+  color: var(--accent); background: rgba(42, 167, 184, 0.18);
+}
+body.scene-on .add:not(.is-idle) .plus-btn { color: var(--accent); }
+body.scene-on .add:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent), 0 8px 24px rgba(0,0,0,.28);
+}
+body.scene-on .add.is-idle #addBtn {
+  background: rgba(226,232,240,.14); color: rgba(241,243,246,.72);
+}
+body.scene-on .add.is-idle #addBtn:hover { background: rgba(226,232,240,.22); color: #f4f5f7; }
+body.scene-on .add:not(.is-idle) #addBtn {
+  background: var(--accent); color: #0c1218;
+  font-weight: 700;
+}
 /* Search box (also a type area) gets the same lava treatment for a cohesive header. */
 body.scene-on .search input {
   background: linear-gradient(180deg, rgba(22,29,41,.82), rgba(14,19,28,.86));
@@ -696,9 +767,9 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
       <div class="tagline"><span class="dash">&mdash;</span><span class="script">a calm list for unhurried days</span><span class="dash">&mdash;</span></div>
     </div>
 
-    <div class="search">
-      <svg class="s-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-      <input id="search" type="text" placeholder="Search tasks, #tags, notes…" autocomplete="off" spellcheck="false" aria-label="Search" />
+    <div class="search" id="searchWrap">
+      <svg class="s-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="search" type="search" enterkeyhint="search" placeholder="Find existing tasks…" autocomplete="off" spellcheck="false" aria-label="Find existing tasks" />
       <span class="kbd s-key">/</span>
     </div>
 
@@ -718,12 +789,14 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
     </nav>
   </header>
 
-  <div class="add">
-    <svg class="plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    <input id="add" type="text" placeholder="Add a task — try “Pay invoice #billing tomorrow 3pm”" autocomplete="off" aria-label="Add a task" />
-    <button id="addBtn">Add</button>
+  <div class="add" id="addWrap">
+    <button type="button" class="plus-btn" id="addPlus" title="Add task" aria-label="Add task">
+      <svg class="plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+    <input id="add" type="text" enterkeyhint="done" placeholder="What needs doing?" autocomplete="off" aria-label="New task" />
+    <button type="button" id="addBtn">Add</button>
   </div>
-  <div class="hint" id="hint"></div>
+  <div class="hint" id="hint" role="status" aria-live="polite"></div>
 
   <div class="list-panel">
     <div class="activefilter" id="activeFilter"></div>
@@ -801,6 +874,8 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
     </div>
   </div>
   <div class="group">
+    <h3>Find vs add</h3>
+    <p>Search finds what’s already on your list. New tasks go in the row below the boxes — tap <b>+</b> or <b>Add</b>.</p>
     <h3>Quick-add syntax</h3>
     <div class="help-grid">
       <div>Tag <span class="kbd">#billing</span></div>
