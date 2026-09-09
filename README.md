@@ -92,7 +92,8 @@ Native media is now only a fallback when Web Audio is unavailable.
 
 Folder buttons toggle open and closed with an inline chevron and active outline.
 Open/closed wording remains in accessible labels and action tooltips.
-The active button closes its folder and restores the full list. Drag-click
+The active button closes its folder and hides its rows. Up means closed; down
+plus an outline means open. All tasks restores the full list. Drag-click
 suppression expires after 350ms and never blocks keyboard activation.
 Additional checks: `node tests/folders.cjs` and `node tests/iphone-audio.cjs`.
 Physical iPhone listening remains a separate validation step.

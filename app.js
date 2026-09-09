@@ -433,7 +433,8 @@ let view = [];            // flattened rendered task ids in order (for j/k)
 let sel = -1;             // selected index into view
 let query = '';
 let tagFilter = null;
-let catFilter = null;     // user-opened box, or null = all (date buckets)
+let catFilter = null;     // currently open folder
+let listCollapsed = false; // closing a folder hides rows; it does not show all
 let pendingCat = null;    // box the user picked in the add hint
 let catPickId = null;     // task id showing the 3-box picker
 let suppressCatClickUntil = 0;
@@ -505,6 +506,7 @@ function searchScore(t) {
 function render() {
   const list = $('#list');
   list.innerHTML = '';
+  list.hidden = listCollapsed;
   list.setAttribute('aria-label', catFilter ? Classify.LABELS[catFilter] : 'Tasks');
   view = [];
 
@@ -512,7 +514,14 @@ function render() {
 
   // active filter chip
   const af = $('#activeFilter');
-  if (tagFilter) {
+  if (listCollapsed) {
+    af.className = 'activefilter on';
+    af.innerHTML = '<button type="button" class="folder-reset" id="showAllTasks">All tasks</button>';
+    $('#showAllTasks').onclick = () => {
+      listCollapsed = false; catFilter = null; tagFilter = null; query = '';
+      $('#search').value = ''; render();
+    };
+  } else if (tagFilter) {
     af.className = 'activefilter on';
     af.innerHTML = `Filtering by <span class="chip">#${esc(tagFilter)} <button id="clearTag" aria-label="Clear filter">${ICON.x}</button></span>`;
     $('#clearTag').onclick = () => { tagFilter = null; sel = -1; render(); };
@@ -523,6 +532,11 @@ function render() {
   $('#statOpen').textContent = `${open} open`;
   $('#hdrCount').textContent = tasks.length ? `· ${open} open` : '';
 
+  if (listCollapsed) {
+    sel = -1;
+    syncBadge(); syncCatStrip();
+    return;
+  }
   if (!pool.length) {
     list.appendChild(emptyState());
     syncBadge();
@@ -569,7 +583,7 @@ function syncCatStrip() {
       const open = catFilter === id;
       btn.setAttribute('aria-expanded', String(open));
       btn.setAttribute('aria-label', `${label}, ${n} task${n !== 1 ? 's' : ''}, ${open ? 'open, tap to close' : 'closed, tap to open'}`);
-      btn.title = open ? `Close ${label} — show all tasks` : `Open ${label}`;
+      btn.title = open ? `Close ${label} — hide contents` : `Open ${label}`;
     }
   });
 }
@@ -735,7 +749,7 @@ async function addFromInput(raw) {
   await STORE.put(t);
   $('#add').value = ''; updateHint(''); syncAddIdle();
   query = ''; $('#search').value = '';
-  tagFilter = null; catFilter = null; catPickId = null;
+  tagFilter = null; catFilter = null; listCollapsed = false; catPickId = null;
   render(); afterChange();
 }
 
@@ -1150,7 +1164,7 @@ document.addEventListener('keydown', e => {
     if (document.querySelector('.sheet.on')) { closeSheets(); return; }
     if (editingId) { editingId = null; render(); return; }
     if (catPickId) { catPickId = null; render(); return; }
-    if (query || tagFilter || catFilter) { query=''; tagFilter=null; catFilter=null; $('#search').value=''; render(); $('#search').blur(); return; }
+    if (query || tagFilter || catFilter || listCollapsed) { query=''; tagFilter=null; catFilter=null; listCollapsed=false; $('#search').value=''; render(); $('#search').blur(); return; }
     if (document.activeElement === $('#search') || document.activeElement === $('#add')) document.activeElement.blur();
     return;
   }
@@ -1208,7 +1222,8 @@ function wire() {
     if (suppress) { e.preventDefault(); e.stopPropagation(); return; }
     const b = e.target.closest('.cat-btn'); if (!b) return;
     const c = b.dataset.cat;
-    catFilter = catFilter === c ? null : c;
+    listCollapsed = catFilter === c;
+    catFilter = listCollapsed ? null : c;
     catPickId = null; sel = -1;
     render();
   });
@@ -1221,6 +1236,7 @@ function wire() {
 
   let st;
   search.addEventListener('input', () => {
+    listCollapsed = false;
     query = search.value.trim();
     clearTimeout(st);
     st = setTimeout(() => { sel = -1; render(); }, 70);
@@ -1288,7 +1304,7 @@ function wire() {
     if (!tasks.length) { status('Nothing to clear.', ''); return; }
     if (!confirm(`Delete ALL ${tasks.length} task${tasks.length!==1?'s':''} on this device?\n\nThis cannot be undone. A snapshot will be downloaded first as a safety net.`)) return;
     Backup.download(); // safety snapshot before destruction
-    await STORE.clear(); tasks = []; sel = -1; undoStack.length = 0; catFilter = null; catPickId = null; pendingCat = null; render();
+    await STORE.clear(); tasks = []; sel = -1; undoStack.length = 0; catFilter = null; listCollapsed = false; catPickId = null; pendingCat = null; render();
     status('All tasks cleared. A safety snapshot was downloaded.', 'ok');
   };
 }
