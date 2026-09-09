@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="app-version" content="1.2.4">
+<meta name="app-version" content="1.2.5">
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)" />
@@ -455,11 +455,12 @@ body.is-dragging .cat-btn.drop-over .cat-label {
   position: fixed; z-index: 41; left: 50%; bottom: 0; transform: translate(-50%, 12px); opacity: 0; pointer-events: none;
   width: min(520px, 100%); background: var(--surface); border: 1px solid var(--line);
   border-radius: 18px 18px 0 0; box-shadow: 0 -8px 40px rgba(0,0,0,.18); padding: 22px 22px calc(22px + env(safe-area-inset-bottom));
-  max-height: min(88vh, 720px); overflow-y: auto;
+  max-height: min(88vh, 720px); max-height: min(88dvh, 720px); overflow-y: auto; overscroll-behavior: contain;
   transition: transform .24s cubic-bezier(.22,1,.36,1), opacity .2s ease;
 }
-@media (min-width: 560px) { .sheet { bottom: 50%; transform: translate(-50%, 56%); border-radius: 16px; } .sheet.on { transform: translate(-50%, 50%); } }
 .sheet.on { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+/* Desktop centering must follow the mobile open-state transform. */
+@media (min-width: 560px) { .sheet { bottom: 50%; transform: translate(-50%, 56%); border-radius: 16px; } .sheet.on { transform: translate(-50%, 50%); } }
 .sheet h2 { font-size: 15px; font-weight: 650; margin-bottom: 4px; }
 .sheet .sub { font-size: 12.5px; color: var(--text-2); margin-bottom: 18px; }
 .sheet .group { margin-bottom: 16px; }
