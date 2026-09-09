@@ -82,12 +82,16 @@ is retained for browsers without Web Audio (gapless playback is not guaranteed
 in that fallback). `tests/audio-browser.html` renders two complete loops at
 48 kHz using OfflineAudioContext and checks the actual rendered wrap.
 
-### iPhone/iPad playback (v1.2.1)
+### iPhone/iPad playback (v1.2.2)
 
-Apple touch devices use native audio playback for home-screen compatibility;
-other browsers retain the decoded-buffer loop. Both use the same crossfaded
-recording. When enabled but silent, tapping the sound button starts/retries it.
-`node tests/iphone-audio.cjs` checks device routing and playback races using
-simulated devices; physical iPhone validation is still needed. Native media
-loop boundaries depend on Safari, so sample-accurate repetition is not promised
-on this compatibility path.
+All browsers with Web Audio support, including iPhones and iPads, use the
+crossfaded buffer loop. This removes the native-media repeat pause introduced
+by the v1.2.1 compatibility change. The original silence report was subsequently
+identified by the user as a muted phone; it did not establish a Web Audio failure.
+Native media is now only a fallback when Web Audio is unavailable.
+
+Folder buttons toggle open and closed with a text-and-chevron state cue.
+The active button closes its folder and restores the full list. Drag-click
+suppression expires after 350ms and never blocks keyboard activation.
+Additional checks: `node tests/folders.cjs` and `node tests/iphone-audio.cjs`.
+Physical iPhone listening remains a separate validation step.

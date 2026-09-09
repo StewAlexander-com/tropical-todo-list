@@ -3,11 +3,9 @@
 class AmbientPlayer {
   constructor(media, Context = window.AudioContext || window.webkitAudioContext, device = typeof navigator === 'undefined' ? {} : navigator) {
     this.media = media;
-    // iPadOS can identify itself as a Mac. Native media playback avoids the
-    // Web Audio interruption/silent-session path on Apple's touch devices.
-    this.nativeMedia = /iPhone|iPad|iPod/.test(device.userAgent || '') ||
-      (device.platform === 'MacIntel' && device.maxTouchPoints > 1);
-    this.Context = this.nativeMedia ? null : Context;
+    // Use sample-clock looping on every Web Audio browser, including iOS.
+    // Native media remains a compatibility fallback only when the API is absent.
+    this.Context = Context;
     this.device = device;
     this.mediaPending = null;
     this.onPlaybackChange = null;

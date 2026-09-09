@@ -13,7 +13,7 @@ class Context {
 }
 const media=()=>({dataset:{},querySelector:()=>({getAttribute:()=>'/assets/ambient-crossfade.wav'}),pause(){}});
 (async()=>{
- const p=new AmbientPlayer(media(),Context);
+ const p=new AmbientPlayer(media(),Context,{userAgent:'iPhone',audioSession:{type:'auto'}});
  const a=p.start(),b=p.start();
  assert.equal(fetches,1,'parallel gestures share one fetch');
  p.stop();resolveDownload();await Promise.all([a,b]);
@@ -30,7 +30,7 @@ const media=()=>({dataset:{},querySelector:()=>({getAttribute:()=>'/assets/ambie
  p.context.failResume=true;await p.start();assert.equal(p.media.dataset.playback,'waiting');
  await p.start();assert.equal(p.context.state,'running');assert.equal(p.source,source);
  // A transient fetch failure must be retryable, without layering extra sources.
- global.fetch=async()=>({ok:false});const q=new AmbientPlayer(media(),Context);await q.start();assert.equal(q.loading,null);
+ global.fetch=async()=>({ok:false});const q=new AmbientPlayer(media(),Context,{userAgent:'iPhone',audioSession:{type:'auto'}});await q.start();assert.equal(q.loading,null);
  global.fetch=async()=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(8)});await q.start();assert.equal(q.context.created,1);
  console.log('Soundscape passed: concurrent start, mute during load, held gain ramps, rapid toggles, suspend/resume, unlock and fetch retry, one looping source');
 })().catch(e=>{console.error(e);process.exitCode=1;});

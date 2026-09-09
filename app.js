@@ -436,7 +436,7 @@ let tagFilter = null;
 let catFilter = null;     // user-opened box, or null = all (date buckets)
 let pendingCat = null;    // box the user picked in the add hint
 let catPickId = null;     // task id showing the 3-box picker
-let suppressCatClick = false;
+let suppressCatClickUntil = 0;
 let catLearned = { work: [], home: [], misc: [] };
 let editingId = null;
 
@@ -566,8 +566,12 @@ function syncCatStrip() {
     const btn = document.getElementById('catBtn' + label);
     if (countEl) countEl.textContent = String(n);
     if (btn) {
-      btn.setAttribute('aria-expanded', catFilter === id ? 'true' : 'false');
-      btn.setAttribute('aria-label', `${label}, ${n} task${n !== 1 ? 's' : ''}${catFilter === id ? ', open' : ''}`);
+      const open = catFilter === id;
+      btn.setAttribute('aria-expanded', String(open));
+      btn.setAttribute('aria-label', `${label}, ${n} task${n !== 1 ? 's' : ''}, ${open ? 'open, tap to close' : 'closed, tap to open'}`);
+      btn.title = open ? `Close ${label} — show all tasks` : `Open ${label}`;
+      const state = btn.querySelector('.cat-state');
+      if (state) state.textContent = open ? 'Open' : 'Closed';
     }
   });
 }
@@ -857,7 +861,7 @@ const Drag = (() => {
     const did = active;
     reset();
     if (did && dest && id) {
-      suppressCatClick = true;
+      suppressCatClickUntil = Date.now() + 350;
       await fileTask(id, dest);
     }
   }
@@ -1201,7 +1205,9 @@ function wire() {
   });
 
   $('#catStrip').addEventListener('click', e => {
-    if (suppressCatClick) { suppressCatClick = false; e.preventDefault(); e.stopPropagation(); return; }
+    const suppress = e.detail !== 0 && Date.now() < suppressCatClickUntil;
+    suppressCatClickUntil = 0;
+    if (suppress) { e.preventDefault(); e.stopPropagation(); return; }
     const b = e.target.closest('.cat-btn'); if (!b) return;
     const c = b.dataset.cat;
     catFilter = catFilter === c ? null : c;

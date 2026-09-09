@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="app-version" content="1.2.1">
+<meta name="app-version" content="1.2.2">
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)" />
@@ -217,7 +217,7 @@ body.scrolled .poster-title { font-size: clamp(18px, 5vw, 22px); letter-spacing:
   appearance: none; background: transparent; border: none;
   border-bottom: 2px solid transparent;
   color: var(--lava-stroke); cursor: pointer; font: inherit;
-  width: 108px; height: 108px; box-sizing: border-box; flex: none;
+  width: 108px; height: 128px; box-sizing: border-box; flex: none;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 8px; padding: 8px 4px 6px;
   transition: border-color .22s ease, color .18s ease;
@@ -241,6 +241,11 @@ body.scrolled .poster-title { font-size: clamp(18px, 5vw, 22px); letter-spacing:
 }
 .cat-btn:hover .cat-label { background: rgba(16, 22, 32, 0.82); }
 .cat-btn[aria-expanded="true"] .cat-label { background: rgba(16, 22, 32, 0.86); }
+.cat-state { display: inline-flex; align-items: center; gap: 6px; font: 14px/1.1 var(--sans, system-ui); color: var(--lava-stroke); }
+.cat-state::after { content: ''; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translateY(-2px); }
+.cat-btn[aria-expanded="true"] .cat-state::after { transform: rotate(225deg) translate(-1px,-1px); }
+.cat-btn[aria-expanded="true"] .cat-label { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cat-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 10px; }
 .cat-name { letter-spacing: .08em; }
 .cat-n {
   font-family: var(--display); font-weight: 500; letter-spacing: 0;
@@ -777,15 +782,15 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
     <nav class="cat-strip" id="catStrip" aria-label="Work, Home, and Misc">
       <button type="button" class="cat-btn" data-cat="work" id="catBtnWork" aria-expanded="false" aria-controls="list">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7.5" r="2.7"/><path d="M12 3v1.1M17.4 7.5h1.1M5.5 7.5h1.1M16.2 3.7l.7-.7M7.1 3.7l-.7-.7"/><path d="M4 14.5h16"/><path d="M6 14.5V19M10 14.5v3.2M14 14.5v3.2M18 14.5V19"/><path d="M4 19h16"/></svg>
-        <span class="cat-label"><span class="cat-name">Work</span> <span class="cat-n" id="catNWork">0</span></span>
+        <span class="cat-label"><span class="cat-name">Work</span> <span class="cat-n" id="catNWork">0</span></span><span class="cat-state" aria-hidden="true">Closed</span>
       </button>
       <button type="button" class="cat-btn" data-cat="home" id="catBtnHome" aria-expanded="false" aria-controls="list">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 13 12 5.5 20.5 13"/><path d="M5.8 13 12 7.8 18.2 13"/><path d="M7.5 13v6.5M16.5 13v6.5"/><path d="M5 19.5h14"/><path d="M12 5.5v2"/></svg>
-        <span class="cat-label"><span class="cat-name">Home</span> <span class="cat-n" id="catNHome">0</span></span>
+        <span class="cat-label"><span class="cat-name">Home</span> <span class="cat-n" id="catNHome">0</span></span><span class="cat-state" aria-hidden="true">Closed</span>
       </button>
       <button type="button" class="cat-btn" data-cat="misc" id="catBtnMisc" aria-expanded="false" aria-controls="list">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 16.5c-3.8.2-6.7-2.4-6.7-5.6 0-3.4 2.7-5.6 5.6-5.2 2.2.3 3.7 2.2 3.7 4.4 0 1.9-1.3 3.4-3 3.4-1.3 0-2.3-.9-2.3-2.1 0-.9.6-1.6 1.5-1.6"/><path d="M15.8 14.8c1.6 1.2 3.4 1.6 4.6.6"/><path d="M8.2 17.2c-1.3.9-3 .7-3.8-.6"/><path d="M9.2 8.2c-.8-1.2-1-2.6-.2-3.4"/></svg>
-        <span class="cat-label"><span class="cat-name">Misc</span> <span class="cat-n" id="catNMisc">0</span></span>
+        <span class="cat-label"><span class="cat-name">Misc</span> <span class="cat-n" id="catNMisc">0</span></span><span class="cat-state" aria-hidden="true">Closed</span>
       </button>
     </nav>
   </header>
@@ -908,8 +913,8 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
 <div class="toast" id="toast" role="status"><span id="toastTxt"></span></div>
 
 <noscript><div style="max-width:560px;margin:60px auto;padding:0 24px;font-family:system-ui;color:#5d6168;text-align:center"><h1 style="color:#1a1c20">Tropical ToDos</h1><p>A calm, local-first to-do list that runs entirely in your browser. Please enable JavaScript to use it. Nothing is ever sent to a server.</p></div></noscript>
-<script src="app.js?v=1.2.1"></script>
-<script src="soundscape.js?v=1.2.1"></script>
-<script src="ambient.js?v=1.2.1"></script>
+<script src="app.js?v=1.2.2"></script>
+<script src="soundscape.js?v=1.2.2"></script>
+<script src="ambient.js?v=1.2.2"></script>
 </body>
 </html>

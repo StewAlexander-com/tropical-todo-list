@@ -1,7 +1,7 @@
 /* Quiet service worker — offline-first app shell.
  * Bumps cache version on each release so updates land. App data lives in
  * IndexedDB (not the cache), so clearing caches never touches your tasks. */
-const CACHE = 'quiet-v35-release-1.2.1';
+const CACHE = 'quiet-v36-release-1.2.2';
 /* Code files are served network-first so the running JS always matches the
    freshly-fetched HTML. (A stale cached ambient.js paired with new markup was
    leaving the desktop background blank.) Cached copies are kept only as an
@@ -10,7 +10,7 @@ const CODE = /\.(?:js|css)$/;
 /* Note: videos are intentionally NOT precached (large); they stream and are
    runtime-cached on first play by the fetch handler below. */
 const SHELL = ['./', './index.html', './app.js', './ambient.js', './soundscape.js', './manifest.webmanifest',
-  './app.js?v=1.2.1', './ambient.js?v=1.2.1', './soundscape.js?v=1.2.1',
+  './app.js?v=1.2.2', './ambient.js?v=1.2.2', './soundscape.js?v=1.2.2',
   './robots.txt', './sitemap.xml', './llms.txt',
   './assets/ambient-crossfade.wav', './assets/beach-poster.jpg', './assets/beach-poster-dusk.jpg',
   './assets/birds/bird1.mp3', './assets/birds/bird2.mp3', './assets/birds/bird3.mp3',
