@@ -570,8 +570,6 @@ function syncCatStrip() {
       btn.setAttribute('aria-expanded', String(open));
       btn.setAttribute('aria-label', `${label}, ${n} task${n !== 1 ? 's' : ''}, ${open ? 'open, tap to close' : 'closed, tap to open'}`);
       btn.title = open ? `Close ${label} — show all tasks` : `Open ${label}`;
-      const state = btn.querySelector('.cat-state');
-      if (state) state.textContent = open ? 'Open' : 'Closed';
     }
   });
 }

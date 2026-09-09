@@ -90,7 +90,8 @@ by the v1.2.1 compatibility change. The original silence report was subsequently
 identified by the user as a muted phone; it did not establish a Web Audio failure.
 Native media is now only a fallback when Web Audio is unavailable.
 
-Folder buttons toggle open and closed with a text-and-chevron state cue.
+Folder buttons toggle open and closed with an inline chevron and active outline.
+Open/closed wording remains in accessible labels and action tooltips.
 The active button closes its folder and restores the full list. Drag-click
 suppression expires after 350ms and never blocks keyboard activation.
 Additional checks: `node tests/folders.cjs` and `node tests/iphone-audio.cjs`.
