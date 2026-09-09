@@ -37,7 +37,7 @@ console.log(`${checks} language regression cases passed`);
  const settle=()=>new Promise(r=>setImmediate(r));await settle();
  const gesture=()=>listeners.click.forEach(f=>f({target:{closest:()=>null}}));
  gesture();await settle();assert.equal(paused,true);
- reject=false;gesture();await settle();assert.equal(paused,false);assert.equal(plays,2);
+ reject=false;buttonHandler();await settle();assert.equal(paused,false);assert.equal(plays,2);
  document.hidden=true;listeners.visibilitychange.forEach(f=>f());assert.equal(paused,false);
  buttonHandler();assert.equal(paused,true);
  gesture();await settle();assert.equal(paused,true);

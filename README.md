@@ -81,3 +81,13 @@ bird envelopes, and short gain ramps for mute/unmute. A media-element fallback
 is retained for browsers without Web Audio (gapless playback is not guaranteed
 in that fallback). `tests/audio-browser.html` renders two complete loops at
 48 kHz using OfflineAudioContext and checks the actual rendered wrap.
+
+### iPhone/iPad playback (v1.2.1)
+
+Apple touch devices use native audio playback for home-screen compatibility;
+other browsers retain the decoded-buffer loop. Both use the same crossfaded
+recording. When enabled but silent, tapping the sound button starts/retries it.
+`node tests/iphone-audio.cjs` checks device routing and playback races using
+simulated devices; physical iPhone validation is still needed. Native media
+loop boundaries depend on Safari, so sample-accurate repetition is not promised
+on this compatibility path.

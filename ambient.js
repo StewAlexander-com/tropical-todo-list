@@ -119,16 +119,19 @@
     if (!btn) return;
     btn.dataset.sound = soundOn ? 'on' : 'off';
     btn.setAttribute('aria-pressed', String(soundOn));
-    btn.setAttribute('aria-label', 'Ambient sound: ' + (soundOn ? 'on' : 'off'));
-    btn.title = soundOn ? 'Ambient sound: on (tap to mute)' : 'Ambient sound: off (tap to unmute)';
+    const needsStart = soundOn && player && !player.isPlaying;
+    btn.setAttribute('aria-label', needsStart ? 'Start ambient sound' : 'Ambient sound: ' + (soundOn ? 'on' : 'off'));
+    btn.title = needsStart ? 'Tap to start ambient sound' : soundOn ? 'Ambient sound: on (tap to mute)' : 'Ambient sound: off (tap to unmute)';
   }
+  if (player) player.onPlaybackChange = applySoundUI;
   function startAudio() {
     if (preferenceReady && soundOn && player) player.start();
   }
   if (btn) btn.addEventListener('click', () => {
     preferenceTouched = true;
     preferenceReady = true;
-    soundOn = !soundOn;
+    // An enabled-but-silent player needs a retry, not a toggle to off.
+    soundOn = !(soundOn && player && player.isPlaying);
     applySoundUI();
     STORE.setMeta('sound', soundOn ? 'on' : 'off').catch(() => {});
     if (soundOn) startAudio();
