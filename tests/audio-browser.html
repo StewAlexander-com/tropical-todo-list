@@ -1,0 +1,26 @@
+<!doctype html><meta charset="utf-8"><title>Ambient audio validation</title>
+<style>body{font:18px system-ui;max-width:760px;margin:48px auto;background:#10242b;color:#e9f4f4}button{font:inherit;padding:12px}pre{white-space:pre-wrap;line-height:1.6}</style>
+<h1>Ambient audio validation</h1><button id="run">Render two loops</button><pre id="result">Ready.</pre>
+<script>
+document.querySelector('#run').onclick=async()=>{
+ const result=document.querySelector('#result');result.textContent='Rendering two complete loops…';
+ try {
+  const rate=48000;
+  const decoder=new OfflineAudioContext(1,1,rate);
+  const response=await fetch('../assets/ambient-crossfade.wav');
+  if(!response.ok)throw Error('Audio fetch failed');
+  const buffer=await decoder.decodeAudioData(await response.arrayBuffer());
+  const frames=buffer.length;
+  const context=new OfflineAudioContext(1,frames*2,rate);
+  const source=context.createBufferSource();source.buffer=buffer;source.loop=true;source.connect(context.destination);source.start();
+  const rendered=await context.startRendering();const data=rendered.getChannelData(0);
+  let peak=0,deltaEnergy=0,difference=0;
+  for(let i=0;i<data.length;i++){peak=Math.max(peak,Math.abs(data[i]));if(i)deltaEnergy+=(data[i]-data[i-1])**2;if(i>=frames)difference=Math.max(difference,Math.abs(data[i]-data[i-frames]));}
+  const jump=Math.abs(data[frames]-data[frames-1]);const typical=Math.sqrt(deltaEnergy/(data.length-1));
+  let minRMS=1;const windowSize=rate*.02;
+  for(let start=frames-rate*.2;start<frames+rate*.2;start+=windowSize){let sum=0;for(let i=start;i<start+windowSize;i++)sum+=data[i]**2;minRMS=Math.min(minRMS,Math.sqrt(sum/windowSize));}
+  if(peak>=1 || minRMS<.001 || jump>typical*4 || difference>.00001)throw Error('Render continuity check failed');
+  result.textContent=`PASS — two ${buffer.duration.toFixed(2)}-second loops rendered at ${rate} Hz.\nNo inserted silent frames or clipping at the wrap.\nPeak: ${(20*Math.log10(peak)).toFixed(2)} dBFS.\nBoundary jump: ${jump.toFixed(6)}; typical sample difference: ${typical.toFixed(6)}.\nLowest 20ms RMS near wrap: ${minRMS.toFixed(6)}.\nSecond-loop sample difference: ${difference}.`;
+ } catch(error){result.textContent='FAIL — '+error.message;}
+};
+</script>

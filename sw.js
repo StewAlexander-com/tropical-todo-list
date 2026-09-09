@@ -1,7 +1,7 @@
 /* Quiet service worker — offline-first app shell.
  * Bumps cache version on each release so updates land. App data lives in
  * IndexedDB (not the cache), so clearing caches never touches your tasks. */
-const CACHE = 'quiet-v31';
+const CACHE = 'quiet-v34-release-1.2';
 /* Code files are served network-first so the running JS always matches the
    freshly-fetched HTML. (A stale cached ambient.js paired with new markup was
    leaving the desktop background blank.) Cached copies are kept only as an
@@ -9,16 +9,17 @@ const CACHE = 'quiet-v31';
 const CODE = /\.(?:js|css)$/;
 /* Note: videos are intentionally NOT precached (large); they stream and are
    runtime-cached on first play by the fetch handler below. */
-const SHELL = ['./', './index.html', './app.js', './ambient.js', './manifest.webmanifest',
+const SHELL = ['./', './index.html', './app.js', './ambient.js', './soundscape.js', './manifest.webmanifest',
+  './app.js?v=1.2', './ambient.js?v=1.2', './soundscape.js?v=1.2',
   './robots.txt', './sitemap.xml', './llms.txt',
-  './assets/waves.mp3', './assets/beach-poster.jpg', './assets/beach-poster-dusk.jpg',
+  './assets/ambient-crossfade.wav', './assets/beach-poster.jpg', './assets/beach-poster-dusk.jpg',
   './assets/birds/bird1.mp3', './assets/birds/bird2.mp3', './assets/birds/bird3.mp3',
   './assets/birds/bird4.mp3', './assets/birds/bird5.mp3', './assets/birds/bird6.mp3',
   './assets/birds/bird7.mp3',
   './icons/icon-192.png', './icons/icon-512.png', './icons/favicon-32.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(url => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 // Let the page tell a waiting worker to activate immediately (belt-and-suspenders
@@ -29,7 +30,7 @@ self.addEventListener('message', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+    caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('quiet-') && k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -50,16 +51,22 @@ self.addEventListener('fetch', e => {
   if (req.mode === 'navigate' || req.destination === 'document' ||
       req.destination === 'script' || req.destination === 'style' || CODE.test(url.pathname)) {
     e.respondWith(
-      fetch(req).then(res => {
-        if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+      fetch(req, { cache: 'no-store' }).then(res => {
+        if (!res || !res.ok) throw new Error('Network response unavailable');
+        const copy = res.clone();
+        e.waitUntil(caches.open(CACHE).then(c => c.put(req, copy)));
         return res;
-      }).catch(() => caches.match(req).then(r => r || caches.match('./index.html')))
+      }).catch(async () => {
+        const cache = await caches.open(CACHE);
+        return await cache.match(req) ||
+          (req.mode === 'navigate' ? await cache.match('./index.html') : null) || Response.error();
+      })
     );
     return;
   }
   // Cache-first for everything else (app shell, fonts).
   e.respondWith(
-    caches.match(req).then(cached => cached || fetch(req).then(res => {
+    caches.match(req).then(cached => cached || fetch(req, { cache: 'no-store' }).then(res => {
       if (res.ok && (url.origin === location.origin)) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
       return res;
     }).catch(() => cached))

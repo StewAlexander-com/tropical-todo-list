@@ -6,7 +6,7 @@
  *
  * Sound: a simple ON/OFF toggle, ON by default. Browsers forbid true autoplay of
  * audio, so we arm it to start on the user's first interaction anywhere (the
- * rain-view unlock: silent-MP3 + retry on touchend/click/keydown). The toggle
+ * gesture unlock, retried on touchend/click/keydown). The toggle
  * just flips whether sound is enabled; the choice persists.
  *
  * Depends on STORE (app.js). Loads after app.js. */
@@ -112,158 +112,48 @@
     else { playVid(active); scheduleCrossfade(); }
   });
 
-  /* ---- Audio: ON by default, armed on first gesture (rain-view unlock) ---- */
-  let soundOn = true;             // default ON
-  let audioArmed = false, audioStarted = false;
-  const silent = new Audio('data:audio/mpeg;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgP////////////////////////////////////////8AAAAATGFtZTMuMTAwA8MAAAAAAAAAABRgJAZAQgAAYAAAAnGMHkkIAAAAAAD/+xDEAAPH3Yz0AAR8I+rJf/AABImb9n+f4/8MACgYvgIAGJDv+xLCC1h7IHvQfeBh+IgDhQBWCAeUdUMABOJpz/9Y4V8mL/V///pvw4DUEgUv0ALAAAAWrCDKFQFIFgAUKWDZKEUqgD6iAAAhCQkBhERgMAEgAg0CFAwh');
-  silent.playsInline = true; silent.volume = 0.01;
-
-  let fadeId = 0;
-  function fadeAudio(target, ms) {
-    const myId = ++fadeId, start = waves.volume, t = performance.now();
-    const clamp = v => Math.max(0, Math.min(1, v));
-    (function step(now) {
-      if (myId !== fadeId) return;
-      const k = Math.min(1, (now - t) / ms);
-      waves.volume = clamp(start + (target - start) * k);
-      if (k < 1) requestAnimationFrame(step);
-      else if (target === 0) { try { waves.pause(); } catch (e) {} }
-    })(t);
-  }
-  function reallyStartAudio() {
-    if (audioStarted) return;
-    try { silent.currentTime = 0; silent.play().catch(() => {}); } catch (e) {}
-    if (!waves) return;
-    waves.volume = 0;
-    const p = waves.play();
-    if (p && p.catch) p.catch(() => {});
-    audioStarted = true;
-    fadeAudio(0.5, 1400);
-    Birds.start();   // bring in the occasional birds alongside the surf
-  }
-  // Arm: the first interaction anywhere starts sound if it's enabled.
-  function armAudio() {
-    if (audioArmed) return; audioArmed = true;
-    const go = () => { if (soundOn && !audioStarted) reallyStartAudio(); };
-    ['pointerdown', 'touchend', 'keydown', 'click'].forEach(ev => document.addEventListener(ev, go, { once: true, passive: true }));
-  }
-
+  /* One decoded, crossfaded soundscape runs on the audio clock. */
+  let soundOn = true, preferenceTouched = false, preferenceReady = false;
+  const player = waves ? new AmbientPlayer(waves) : null;
   function applySoundUI() {
     if (!btn) return;
     btn.dataset.sound = soundOn ? 'on' : 'off';
-    btn.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
+    btn.setAttribute('aria-pressed', String(soundOn));
     btn.setAttribute('aria-label', 'Ambient sound: ' + (soundOn ? 'on' : 'off'));
     btn.title = soundOn ? 'Ambient sound: on (tap to mute)' : 'Ambient sound: off (tap to unmute)';
   }
-
+  function startAudio() {
+    if (preferenceReady && soundOn && player) player.start();
+  }
   if (btn) btn.addEventListener('click', () => {
+    preferenceTouched = true;
+    preferenceReady = true;
     soundOn = !soundOn;
     applySoundUI();
-    try { STORE.setMeta('sound', soundOn ? 'on' : 'off'); } catch (e) {}
-    if (soundOn) { if (!audioStarted) reallyStartAudio(); else { const p = waves.play(); if (p && p.catch) p.catch(() => {}); fadeAudio(0.5, 600); Birds.resume(); } }
-    else { fadeAudio(0, 500); Birds.stop(); }
+    STORE.setMeta('sound', soundOn ? 'on' : 'off').catch(() => {});
+    if (soundOn) startAudio();
+    else if (player) player.stop();
   });
-
-  // Resume audio after backgrounding if it should be on.
+  ['pointerdown', 'touchend', 'keydown', 'click'].forEach(event => {
+    document.addEventListener(event, e => {
+      if (!e.target.closest?.('#btnAmbient')) startAudio();
+    }, { passive: true });
+  });
+  // Never stop sound just because the page is hidden. Recover if the browser
+  // or OS interrupted it; a subsequent gesture remains a fallback.
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { Birds.stop(); return; }
-    if (soundOn && audioStarted) { const p = waves.play(); if (p && p.catch) p.catch(() => {}); Birds.resume(); }
+    if (!document.hidden) startAudio();
   });
+  window.addEventListener('pageshow', startAudio);
+  if (waves) waves.addEventListener('ended', startAudio);
 
-  /* ---- Birds: occasional REAL chirps layered over the waves -------------------
-   * Real recordings (CC / public-domain, from Wikimedia Commons): tailorbird,
-   * white-eye, oriole, song wren — short clips chosen to read unmistakably as
-   * birds, never synthetic. Played through the Web Audio API so many calls can
-   * overlap cheaply (one decoded buffer each, no <audio> elements). Each play
-   * gets a small random gain + playback-rate wobble so it never sounds looped,
-   * and they sit clearly UNDER the surf. Lazily fetched only once sound is on. */
-  const BIRD_FILES = ['bird1','bird2','bird3','bird4','bird5','bird6','bird7']
-    .map(n => 'assets/birds/' + n + '.mp3');
-  const Birds = (() => {
-    let actx = null, master = null, buffers = [], loaded = false, loading = false;
-    let timer = 0, running = false;
-    const rand = (a, b) => a + Math.random() * (b - a);
-
-    function ensureCtx() {
-      if (actx) return actx;
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return null;
-      actx = new AC();
-      master = actx.createGain();
-      master.gain.value = 1;
-      master.connect(actx.destination);
-      return actx;
-    }
-    async function load() {
-      if (loaded || loading || !ensureCtx()) return;
-      loading = true;
-      try {
-        buffers = await Promise.all(BIRD_FILES.map(async (u) => {
-          try {
-            const r = await fetch(u); if (!r.ok) return null;
-            const ab = await r.arrayBuffer();
-            return await actx.decodeAudioData(ab);
-          } catch (e) { return null; }
-        }));
-        buffers = buffers.filter(Boolean);
-        loaded = buffers.length > 0;
-      } catch (e) { /* no birds, no harm */ }
-      loading = false;
-    }
-    function chirp(delay) {
-      if (!loaded || !actx) return;
-      const buf = buffers[(Math.random() * buffers.length) | 0];
-      if (!buf) return;
-      const src = actx.createBufferSource();
-      src.buffer = buf;
-      src.playbackRate.value = rand(0.94, 1.06);   // subtle pitch wobble (stays natural)
-      const g = actx.createGain();
-      const peak = rand(0.12, 0.30);               // well under the waves (~0.5)
-      const t0 = actx.currentTime + (delay || 0);
-      const dur = buf.duration / src.playbackRate.value;
-      // tiny envelope so overlaps never click
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(peak, t0 + 0.04);
-      g.gain.setValueAtTime(peak, Math.max(t0 + 0.05, t0 + dur - 0.08));
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-      src.connect(g); g.connect(master);
-      try { src.start(t0); src.stop(t0 + dur + 0.02); } catch (e) {}
-    }
-    function scheduleNext() {
-      clearTimeout(timer);
-      if (!running) return;
-      const wait = rand(6000, 16000);              // tropical-but-calm cadence
-      timer = setTimeout(() => {
-        if (!running) return;
-        chirp(0);
-        if (Math.random() < 0.28) chirp(rand(0.3, 1.2)); // sometimes a 2nd, layered
-        scheduleNext();
-      }, wait);
-    }
-    return {
-      async start() {
-        if (running) return;
-        if (!ensureCtx()) return;
-        if (actx.state === 'suspended') { try { await actx.resume(); } catch (e) {} }
-        await load();
-        if (!loaded) return;
-        running = true;
-        // first chirp soon after sound starts, then randomized
-        timer = setTimeout(() => { if (running) { chirp(0); scheduleNext(); } }, rand(2500, 6000));
-      },
-      stop() { running = false; clearTimeout(timer); if (actx && actx.state === 'running') { try { actx.suspend(); } catch (e) {} } },
-      resume() { if (!running && soundOn && audioStarted) this.start(); else if (actx && actx.state === 'suspended') { try { actx.resume(); } catch (e) {} } },
-    };
-  })();
-
-  /* ---- Boot ---- */
   (async () => {
-    // Restore sound preference (default on if never set).
     let saved = null;
-    try { saved = await STORE.getMeta('sound'); } catch (e) {}
-    soundOn = (saved === 'off') ? false : true;
+    try { saved = await STORE.getMeta('sound'); } catch (_) {}
+    if (!preferenceTouched) soundOn = saved !== 'off';
+    preferenceReady = true;
+    if (!soundOn && player) player.stop();
     applySoundUI();
-    startVideo();         // always
-    armAudio();           // sound begins on first interaction if enabled
+    startVideo();
   })();
 })();

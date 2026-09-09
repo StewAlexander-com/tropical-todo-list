@@ -17,3 +17,8 @@ Pattern credit
 The dual-video crossfade loop and audio unlock / start-muted / visibility-resume
 patterns are adapted from the author's own projects rain-view and pocket-card
 (github.com/StewAlexander-com).
+
+assets/ambient-crossfade.wav combines the synthesized CC0 surf with the bird recordings
+described in README.md (Common Tailorbird, Indian White-eye, Song Wren, and
+Indian Golden Oriole; inherited assets/birds/bird1.mp3 through bird7.mp3). Mixed with overlap fades by _build/make_ambient.py; this combined
+adaptation is distributed under CC BY-SA 4.0, retaining the existing recording credits.

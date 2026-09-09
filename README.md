@@ -23,10 +23,10 @@ A single-page to-do list that runs **entirely in your browser**. No account, no 
 - **Natural-language quick-add** — type `Pay invoice #billing tomorrow 3pm` and it parses the title, the `#billing` tag, and the due date/time automatically.
 - **Work · Home · Misc** — wording and times suggest a box; a referenced time files it (e.g. `Pay invoice tomorrow 3pm` → Work). Drag any task onto a bucket, or click an icon under search to open it.
 - **Calm date buckets** — Overdue · Today · This Week · Later · Someday.
-- **Fuzzy search** over titles, `#tags`, and notes (`invce` finds "invoice").
+- **Thesaurus + fuzzy search** over titles, `#tags`, and notes (`invce` finds "invoice"; `laundry` finds "wash the clothes").
 - **Keyboard-first** — `/` search · `n` new · `j`/`k` move · `x` complete · `e` edit · `⌫` delete · `?` help.
 - **Cinematic beach background** — an AI-rendered, seamlessly looping video (with a graceful still-image fallback). Tasks sit on dark "lava-rock" pills so text always reads.
-- **Gentle ocean waves + birds** — a synthesized surf loop with occasional real bird calls layered in, on by default, with a one-tap mute toggle.
+- **Continuous ocean waves + birds** — a seamless 60-second PCM soundscape, on after the first interaction, with a one-tap mute toggle. The app keeps it playing when hidden; mobile operating systems may still suspend audio.
 - **Backup, your way** — one-click JSON export, restore (merge or replace), and optional auto-backup to a folder you grant.
 - **Offline-first PWA** — installable to your home screen with a tropical palm-and-sun icon; works with no connection.
 - **Light & dusk themes** follow your system preference.
@@ -64,5 +64,20 @@ Static files, zero build step. To host on GitHub Pages:
 
 - **Beach video** — AI-generated with Veo from the owner's own beach photograph; day/dusk grades via ffmpeg. Seamless loop via a dual-video crossfade (pattern adapted from [rain-view](https://github.com/StewAlexander-com/rain-view)).
 - **Wave audio** — procedurally synthesized (CC0). Audio unlock pattern adapted from [pocket-card](https://github.com/StewAlexander-com/pocket-card).
-- **Bird calls** — short clips from real recordings on [Wikimedia Commons](https://commons.wikimedia.org/) (Common Tailorbird, Indian White-eye & Song Wren, CC BY-SA 4.0; Indian Golden Oriole, public domain), layered occasionally over the surf via the Web Audio API.
+- **Bird calls** — short clips from real recordings on [Wikimedia Commons](https://commons.wikimedia.org/) (Common Tailorbird, Indian White-eye & Song Wren, CC BY-SA 4.0; Indian Golden Oriole, public domain), mixed into the surf loop at build time, with their existing attribution retained.
 - Built by [StewAlexander.com](https://stewalexander.com).
+
+## Language and audio regression checks
+
+Run `node tests/regression.cjs`, `node tests/soundscape.cjs`, and `python3 tests/audio_asset.py`. Rebuild the
+combined audio using `python3 _build/make_ambient.py` (requires ffmpeg). The local
+task thesaurus covers phrases and word forms for category suggestions and search;
+it preserves original titles, explicit category choices, and learned vocabulary.
+No remote model or thesaurus service receives task data.
+
+The audio player decodes the soundscape once and loops on the Web Audio clock.
+The mix uses a three-second equal-power crossfade with smooth easing, gentler
+bird envelopes, and short gain ramps for mute/unmute. A media-element fallback
+is retained for browsers without Web Audio (gapless playback is not guaranteed
+in that fallback). `tests/audio-browser.html` renders two complete loops at
+48 kHz using OfflineAudioContext and checks the actual rendered wrap.

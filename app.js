@@ -276,6 +276,66 @@ const BUCKETS = [
  * suggestions. Confidence is a margin signal. NOTHING is filed
  * until the user picks a box (hint, #work|#home|#misc, or row).
  * ============================================================ */
+/* A small, task-focused thesaurus. Exact phrases avoid broad associations such
+ * as treating every "call" as work. Titles and stored tags are never rewritten. */
+const Vocabulary = (() => {
+  const groups = {
+    meeting: ['meetings', 'sync up', 'catch up with team', 'team catch up', 'touch base', 'conference call', 'huddle'],
+    email: ['emails', 'emailed', 'emailing', 'e mail', 'send a message', 'correspondence'],
+    invoice: ['invoices', 'invoicing', 'invoiced', 'billing statement'],
+    presentation: ['presentations', 'slide deck', 'slides', 'slideshow'],
+    report: ['reports', 'reporting', 'write up', 'writeup'],
+    client: ['clients', 'customer', 'customers'],
+    coworker: ['coworkers', 'co worker', 'co workers', 'colleague', 'colleagues', 'teammate', 'teammates'],
+    review: ['reviews', 'reviewing', 'reviewed', 'proofread', 'proofreading'],
+    deploy: ['deploying', 'deployed', 'deployment', 'ship code'],
+    grocery: ['groceries', 'grocery shopping', 'food shopping', 'supermarket', 'provisions'],
+    laundry: ['wash clothes', 'washing clothes', 'wash the clothes', 'do the washing'],
+    clean: ['cleaning', 'cleaned', 'clean up', 'tidy', 'tidying', 'tidy up', 'straighten up', 'spruce up', 'scrub', 'scrubbing'],
+    organize: ['organise', 'organising', 'organizing', 'organized', 'organised', 'declutter', 'decluttering'],
+    trash: ['garbage', 'rubbish', 'take out the bins', 'take the bins out'],
+    dishes: ['wash up', 'washing up', 'wash dishes', 'wash the dishes'],
+    cook: ['cooking', 'cooked', 'prepare dinner', 'meal prep'],
+    garden: ['gardening', 'yard work', 'yardwork'],
+    mow: ['mowing', 'mowed', 'cut the grass'],
+    repair: ['repairs', 'repairing', 'repaired', 'mend', 'mending'],
+    plumber: ['plumbing'],
+    vet: ['veterinarian', 'veterinary'],
+    kids: ['kid', 'child', 'children'],
+    gym: ['fitness centre', 'fitness center', 'health club'],
+    workout: ['workouts', 'work out', 'exercise', 'exercising', 'jog', 'jogging'],
+    vacation: ['vacations', 'holiday', 'holidays', 'getaway'],
+    flight: ['flights', 'airfare', 'plane ticket', 'plane tickets'],
+    haircut: ['haircuts', 'barber', 'hairdresser', 'hair salon'],
+    pharmacy: ['chemist', 'drugstore', 'prescription', 'prescriptions'],
+    donate: ['donation', 'donations', 'donating', 'give away'],
+    car: ['automobile', 'vehicle'],
+  };
+  const aliases = new Map();
+  const words = s => String(s || '').normalize('NFKC').toLowerCase().match(/[\p{L}\p{N}]+/gu) || [];
+  for (const [canonical, forms] of Object.entries(groups)) {
+    for (const form of [canonical, ...forms]) aliases.set(words(form).join(' '), canonical);
+  }
+  const maxPhrase = Math.max(...[...aliases.keys()].map(k => k.split(' ').length));
+  function tokenize(text) {
+    const input = words(text), result = [];
+    for (let i = 0; i < input.length;) {
+      let found = false;
+      for (let n = Math.min(maxPhrase, input.length-i); n > 0; n--) {
+        const key = input.slice(i, i+n).join(' ');
+        if (aliases.has(key)) { result.push(aliases.get(key)); i += n; found = true; break; }
+      }
+      if (!found) result.push(input[i++]);
+    }
+    return result;
+  }
+  function matches(query, text) {
+    const wanted = tokenize(query), available = new Set(tokenize(text));
+    return wanted.length > 0 && wanted.every(word => available.has(word));
+  }
+  return { tokenize, matches };
+})();
+
 const Classify = (() => {
   const IDS = ['work', 'home', 'misc'];
   const LABELS = { work: 'Work', home: 'Home', misc: 'Misc' };
@@ -285,10 +345,10 @@ const Classify = (() => {
     home: 'grocery groceries supermarket laundry dishes dishwasher vacuum mop trash recycling kids kid child children school pickup dropoff daycare vet veterinarian dog cat pet lawn mow garden plants plumber electrician repair leak fridge oven dinner cook cooking meal family spouse partner bedtime homework mortgage rent landlord apartment house kitchen bathroom bedroom closet ikea assemble paint furniture neighbor drywall gutters hvac clean cleaning organize pantry litter chores chore housework babysit babysitter milk eggs bread diapers'.split(' '),
     misc: 'gift gifts birthday anniversary travel trip flight hotel vacation hobby gym workout errand errands car oil tires dmv registration library dentist pharmacy haircut donate volunteer concert tickets museum passport visa packing pack suitcase souvenir'.split(' '),
   };
-  const SETS = Object.fromEntries(IDS.map(id => [id, new Set(LEX[id])]));
+  const SETS = Object.fromEntries(IDS.map(id => [id, new Set(Vocabulary.tokenize(LEX[id].join(" ")))]));
 
   function tokenize(s) {
-    return (String(s || '').toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).filter(t => t.length >= 2 && !STOP.has(t));
+    return Vocabulary.tokenize(s).filter(t => t.length >= 2 && !STOP.has(t));
   }
   function datePrior(due, hasTime) {
     const w = { work: 0, home: 0, misc: 0 };
@@ -309,7 +369,7 @@ const Classify = (() => {
     const w = { work: 0, home: 0, misc: 0 };
     for (const id of IDS) {
       const set = SETS[id];
-      const learnedSet = new Set((learned && learned[id]) || []);
+      const learnedSet = new Set(Vocabulary.tokenize(((learned && learned[id]) || []).join(' ')));
       for (const t of tokens) {
         if (set.has(t)) w[id] += 1.15;
         if (learnedSet.has(t)) w[id] += 1.4;
@@ -432,14 +492,14 @@ function matches(t) {
   if (tagFilter && !t.tags.includes(tagFilter)) return false;
   if (!query) return true;
   const hay = t.title + ' ' + t.tags.map(x => '#' + x).join(' ') + ' ' + (t.notes || '') + ' ' + (t.category ? Classify.LABELS[t.category] : '');
-  return fuzzy(query, hay) > -1 || dateMatch(query, t);
+  return fuzzy(query, hay) > -1 || Vocabulary.matches(query, hay) || dateMatch(query, t);
 }
 function searchScore(t) {
   const hay = t.title + ' ' + t.tags.map(x => '#' + x).join(' ') + ' ' + (t.category ? Classify.LABELS[t.category] : '');
   const textScore = fuzzy(query, hay);
   // Date hits rank just under strong text hits but clearly above weak ones.
   const dateScore = dateMatch(query, t) ? 30 : -1;
-  return Math.max(textScore, dateScore);
+  return Math.max(textScore, dateScore, Vocabulary.matches(query, hay) ? 25 : -1);
 }
 
 function render() {
@@ -1294,12 +1354,14 @@ if ('serviceWorker' in navigator) {
     location.reload();
   });
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').then((reg) => {
-      const poke = () => { try { reg.update(); } catch (e) {} };
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
+      const poke = () => { reg.update().catch(() => {}); };
       poke();                                              // check now
       setInterval(poke, 60 * 60 * 1000);                   // and hourly while open
       document.addEventListener('visibilitychange', () => { if (!document.hidden) poke(); });
       window.addEventListener('focus', poke);
+      window.addEventListener('pageshow', poke);
+      window.addEventListener('online', poke);
       // If an updated worker is found, let it activate immediately (sw.js also
       // calls skipWaiting, but nudge any that are waiting just in case).
       reg.addEventListener('updatefound', () => {
