@@ -1,9 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-<title>Tropical ToDos — Rooted palm</title>
+<title>Tropical ToDos — Windward sweep</title>
 <desc>An original ivory palm and relaxed checkmark rooted in a flowing beach on ocean blue.</desc>
 <rect width="512" height="512" fill="#229DCD"/>
 <g transform="translate(-12 12)" fill="#F8FAF2">
-<path d="M161 283 C157 289 158 296 165 302 L227 353 C201 350 173 355 145 369 C182 361 214 362 248 370 C300 382 355 374 394 349 C349 366 299 366 260 348 C286 306 307 248 308 192 C307 181 289 178 285 190 C282 245 266 295 242 329 L180 281 C173 276 166 277 161 283 Z"/>
+<path d="M170 286 C197 317 218 341 245 352 C271 322 307 266 296 190" fill="none" stroke="#F8FAF2" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M149 366 C185 343 213 340 245 352 C290 371 346 377 395 342" fill="none" stroke="#F8FAF2" stroke-width="17" stroke-linecap="round"/>
     <path d="M295 185 C250 151 201 164 166 203 C214 183 253 190 285 210 Z"/>
     <path d="M295 184 C274 139 227 114 187 130 C229 139 255 173 283 204 Z"/>
     <path d="M294 191 C269 159 266 123 289 96 C303 124 312 156 302 193 Z"/>

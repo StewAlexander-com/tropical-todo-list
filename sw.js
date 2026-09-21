@@ -1,7 +1,7 @@
 /* Quiet service worker — offline-first app shell.
  * Bumps cache version on each release so updates land. App data lives in
  * IndexedDB (not the cache), so clearing caches never touches your tasks. */
-const CACHE = 'quiet-v40-release-1.2.6';
+const CACHE = 'quiet-v41-release-1.3.0';
 /* Code files are served network-first so the running JS always matches the
    freshly-fetched HTML. (A stale cached ambient.js paired with new markup was
    leaving the desktop background blank.) Cached copies are kept only as an
@@ -9,13 +9,16 @@ const CACHE = 'quiet-v40-release-1.2.6';
 const CODE = /\.(?:js|css)$/;
 /* Note: videos are intentionally NOT precached (large); they stream and are
    runtime-cached on first play by the fetch handler below. */
-const SHELL = ['./', './index.html', './app.js', './ambient.js', './soundscape.js', './manifest.webmanifest',
+const SHELL = ['./', './index.html', './app.js', './ambient.js', './soundscape.js', './manifest.webmanifest', './manifest.webmanifest?v=1.3.0',
   './app.js?v=1.2.6', './ambient.js?v=1.2.6', './soundscape.js?v=1.2.6',
   './robots.txt', './sitemap.xml', './llms.txt',
   './assets/ambient-crossfade.wav', './assets/beach-poster.jpg', './assets/beach-poster-dusk.jpg',
   './assets/birds/bird1.mp3', './assets/birds/bird2.mp3', './assets/birds/bird3.mp3',
   './assets/birds/bird4.mp3', './assets/birds/bird5.mp3', './assets/birds/bird6.mp3',
   './assets/birds/bird7.mp3',
+  './icons/icon-v1.3.0-32.png', './icons/icon-v1.3.0-180.png',
+  './icons/icon-v1.3.0-192.png', './icons/icon-v1.3.0-512.png',
+  './icons/icon-v1.3.0-192-maskable.png', './icons/icon-v1.3.0-512-maskable.png',
   './icons/icon-192.png', './icons/icon-512.png', './icons/favicon-32.png'];
 
 self.addEventListener('install', e => {

@@ -28,7 +28,7 @@ A single-page to-do list that runs **entirely in your browser**. No account, no 
 - **Cinematic beach background** — an AI-rendered, seamlessly looping video (with a graceful still-image fallback). Tasks sit on dark "lava-rock" pills so text always reads.
 - **Continuous ocean waves + birds** — a seamless 60-second PCM soundscape, on after the first interaction, with a one-tap mute toggle. The app keeps it playing when hidden; mobile operating systems may still suspend audio.
 - **Backup, your way** — one-click JSON export, restore (merge or replace), and optional auto-backup to a folder you grant.
-- **Offline-first PWA** — installable to your home screen with a tropical palm-and-sun icon; works with no connection.
+- **Offline-first PWA** — installable to your home screen with a tropical palm-and-check icon; works with no connection.
 - **Light & dusk themes** follow your system preference.
 
 ## Privacy
@@ -97,3 +97,15 @@ plus an outline means open. All tasks restores the full list. Drag-click
 suppression expires after 350ms and never blocks keyboard activation.
 Additional checks: `node tests/folders.cjs` and `node tests/iphone-audio.cjs`.
 Physical iPhone listening remains a separate validation step.
+
+### App icon
+
+The original palm-check mark combines a tropical palm and completion check in
+one ivory silhouette with a gently swaying, tapered trunk flowing into a beach on ocean blue. Source: `_build/icon.svg`; raster exports:
+`_build/make_icons.cjs` (requires Sharp at build time). All installation icons
+are opaque and the mark fits within the maskable safe circle.
+
+Flaticon palm-tree and to-do collections were reviewed for general visual
+research; no Flaticon artwork, paths, or downloadable assets are used.
+Reference collections: https://www.flaticon.com/free-icons/palm-tree and
+https://www.flaticon.com/free-icons/to-do-list.
