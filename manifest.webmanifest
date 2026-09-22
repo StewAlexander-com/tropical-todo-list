@@ -1,6 +1,6 @@
 {
-  "name": "Tropical ToDos",
-  "short_name": "Tropical",
+  "name": "Troplist",
+  "short_name": "Troplist",
   "id": "https://www.troplist.com/",
   "description": "A calm, local-first to-do list with a cinematic beach backdrop and gentle ocean waves. Private by design, offline-first, zero network.",
   "start_url": "/",
