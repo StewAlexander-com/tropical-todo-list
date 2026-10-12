@@ -23,6 +23,21 @@
   // Scene content always shows (drives the lava-rock panel + readable text).
   document.body.classList.add('scene-on');
 
+  /* Keep the shoreline in view. Cover-cropping a portrait beach on a wide
+     desktop otherwise shows only palms/sky. Mobile portrait stays top-pinned. */
+  const SRC_W = 720, SRC_H = 898;
+  const SHORE_MIN = 0.40, SHORE_MAX = 0.88;
+  function frameScene() {
+    const vw = Math.max(1, window.innerWidth), vh = Math.max(1, window.innerHeight);
+    const visible = (vh / vw) * (SRC_W / SRC_H);
+    if (visible >= 0.98) { sceneEl.style.setProperty('--scene-y', 'top'); return; }
+    const overflow = 1 - visible;
+    const start = Math.min(Math.max((SHORE_MIN + SHORE_MAX) / 2 - visible / 2, 0), overflow);
+    sceneEl.style.setProperty('--scene-y', ((start / overflow) * 100).toFixed(1) + '%');
+  }
+  frameScene();
+  window.addEventListener('resize', frameScene);
+
   /* ---- Source selection (theme + size aware) ---- */
   const isMobile = matchMedia('(max-width: 560px)').matches;
   function isDark() { return matchMedia('(prefers-color-scheme: dark)').matches; }

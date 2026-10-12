@@ -515,13 +515,21 @@ body.is-dragging .cat-btn.drop-over .cat-label {
    CSS — so a beach shows even if JavaScript never runs, runs stale, or the video
    can't decode. The container itself is NOT opacity-gated (that was the bug that
    left desktop totally blank when ambient.js didn't reach its ready() call). */
-.scene { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
-  background: url('assets/beach-poster.jpg') center top / cover no-repeat; }
+.scene {
+  --scene-y: top;
+  position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+  background: url('assets/beach-poster.jpg') center var(--scene-y) / cover no-repeat;
+}
 @media (prefers-color-scheme: dark) { .scene { background-image: url('assets/beach-poster-dusk.jpg'); } }
+/* Source is portrait (~4:5). Cover + top on a landscape desktop crops the ocean.
+   Shift the crop toward the shoreline so waves stay in frame; palms remain a canopy. */
+@media (orientation: landscape) and (min-aspect-ratio: 5/4) { .scene { --scene-y: 68%; } }
+@media (orientation: landscape) and (min-aspect-ratio: 16/10) { .scene { --scene-y: 75%; } }
+@media (orientation: landscape) and (min-aspect-ratio: 2/1) { .scene { --scene-y: 80%; } }
 
 .scene-vid {
   position: absolute; inset: 0; width: 100%; height: 100%;
-  object-fit: cover; object-position: center top; z-index: 0;
+  object-fit: cover; object-position: center var(--scene-y); z-index: 0;
   /* gentle filmic grade so it reads as a cohesive backdrop, not raw footage */
   filter: saturate(1.04) contrast(1.03) brightness(1.0);
   /* Videos fade in only once JS confirms they're playing; until then the CSS
@@ -919,6 +927,6 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
 <noscript><div style="max-width:560px;margin:60px auto;padding:0 24px;font-family:system-ui;color:#5d6168;text-align:center"><h1 style="color:#1a1c20">Tropical ToDos</h1><p>A calm, local-first to-do list that runs entirely in your browser. Please enable JavaScript to use it. Nothing is ever sent to a server.</p></div></noscript>
 <script src="app.js?v=1.2.6"></script>
 <script src="soundscape.js?v=1.2.6"></script>
-<script src="ambient.js?v=1.2.6"></script>
+<script src="ambient.js?v=1.3.2"></script>
 </body>
 </html>

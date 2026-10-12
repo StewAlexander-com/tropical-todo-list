@@ -8,7 +8,7 @@ async function life(name){let pending;handlers[name]({waitUntil:p=>pending=p});a
 async function request(path,mode='cors'){let response;const pending=[];handlers.fetch({request:{method:'GET',url:'https://www.troplist.com/'+path,mode,destination:path.endsWith('.html')?'document':'script',headers:new Headers()},respondWith:p=>response=p,waitUntil:p=>pending.push(p)});const res=await response;await Promise.all(pending);return res;}
 (async()=>{
  await life('install');assert.ok(adds.every(r=>r.cache==='reload'));assert.ok(adds.some(r=>r.url.endsWith('soundscape.js?v=1.2.6')));
- await life('activate');assert.deepEqual(deleted,['quiet-v31']);
+ await life('activate');assert.deepEqual(deleted,['quiet-v31','quiet-v42-release-1.3.1']);
  assert.equal(await (await request('app.js?v=1.2.6')).text(),'fresh');assert.equal(options.cache,'no-store');
  offline=true;assert.equal(await (await request('index.html','navigate')).text(),'offline shell');
  assert.equal((await request('missing.js')).type,'error');
