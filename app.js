@@ -1647,14 +1647,26 @@ boot();
 // threshold (keeps the grand first impression without burying the task list).
 (function () {
   let ticking = false;
+  const typing = () => {
+    const t = document.activeElement;
+    return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+  };
+  const keyboard = () => {
+    const vv = window.visualViewport;
+    return !!(vv && window.innerHeight - vv.height > 80);
+  };
   const onScroll = () => {
     if (ticking) return; ticking = true;
     requestAnimationFrame(() => {
-      document.body.classList.toggle('scrolled', window.scrollY > 28);
+      // iOS bumps scrollY when the keyboard opens; that is not a user scroll.
+      if (!typing() && !keyboard()) {
+        document.body.classList.toggle('scrolled', window.scrollY > 28);
+      }
       ticking = false;
     });
   };
   window.addEventListener('scroll', onScroll, { passive: true });
+  if (window.visualViewport) visualViewport.addEventListener('resize', onScroll, { passive: true });
   onScroll();
 })();
 

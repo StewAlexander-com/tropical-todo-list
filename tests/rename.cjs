@@ -75,6 +75,7 @@ check(/@media \(hover: hover\) and \(pointer: fine\)/.test(html),'hover reveal r
 check(!/\.cat-cell:focus-within \.cat-rename/.test(html),'folder tap focus does not pin a pencil');
 check(/pointerType !== 'touch'/.test(app) && /startRename\(id\)/.test(app),'press-and-hold on touch starts rename');
 check(/contextmenu/.test(app),'long-press does not open the iOS callout');
+check(!/body\.scene-on\.scrolled header \{ background: color-mix\(in srgb, var\(--bg\)/.test(html),'scrolled beach header is not a paper veil');
 check(/repeat\(6, minmax\(0, 1fr\)\)/.test(html),'phones use a 6-track folder grid');
 check(/cat-cell:nth-child\(4\) \{ grid-column: 2 \/ 4/.test(html),'second folder row is centered');
 
