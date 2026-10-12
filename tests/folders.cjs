@@ -30,7 +30,7 @@ const rendering=vm.createContext({
  el:()=>new Node(),bucketHead:()=>({header:true}),taskRow:t=>({task:t.id}),
  syncBadge(){},syncCatStrip(){},paintSel(){}
 });
-vm.runInContext(`let listCollapsed=false,catFilter=null,catPickId=null,sel=-1,suppressCatClickUntil=0,tagFilter=null,query='',view=[];
+vm.runInContext(`let listCollapsed=false,catFilter=null,catPickId=null,sel=-1,suppressCatClickUntil=0,tagFilter=null,query='',view=[],hideDone=false;
 let tasks=['work','home','misc'].map(category=>({id:category,category,done:false,created:0}));
 function matches(t){return !catFilter || t.category===catFilter;}
 `+source.slice(source.indexOf('function render()'),source.indexOf('function syncCatStrip()'))+source.slice(start,end),rendering);

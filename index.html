@@ -389,6 +389,10 @@ body.is-dragging .cat-btn.drop-over .cat-label {
 .task-body { flex: 1; min-width: 0; }
 .task-title { font-size: 14.5px; color: var(--text); word-break: break-word; transition: color .2s ease; }
 .task.done .task-title { color: var(--text-faint); text-decoration: line-through; text-decoration-color: var(--line); }
+.task-note {
+  font-size: 12.5px; color: var(--text-faint); margin-top: 3px; line-height: 1.4;
+  max-height: 2.8em; overflow: hidden;
+}
 .task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 5px; }
 .task-meta:empty { display: none; }
 .tag {
@@ -415,6 +419,14 @@ body.is-dragging .cat-btn.drop-over .cat-label {
 /* edit inline */
 .task-edit { width: 100%; font: inherit; font-size: 14.5px; color: var(--text); background: var(--surface-2);
   border: 1px solid var(--accent); border-radius: 6px; padding: 6px 9px; outline: none; }
+.task-note-edit {
+  width: 100%; font: inherit; font-size: 13px; color: var(--text-2); background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; outline: none; resize: none;
+  margin-top: 6px; min-height: 2.6em; line-height: 1.4;
+}
+.task-note-edit:focus { border-color: var(--accent); }
+body.scene-on .task-note { color: rgba(226,232,240,.7); }
+body.scene-on .task-note-edit { color: #e8e9ec; background: rgba(16,22,32,.55); border-color: rgba(255,255,255,.14); }
 
 /* ---- Empty / filter chips ---- */
 .empty { text-align: center; padding: 70px 20px; color: var(--text-faint); }
@@ -825,6 +837,7 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
     <span class="stat" title="Open tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span id="statOpen">0 open</span></span>
     <span class="stat" id="statSync" title="Last saved"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg><span id="syncTxt">saved</span></span>
     <span class="spacer"></span>
+    <span class="lnk" id="lnkHideDone" hidden>Hide done</span>
     <span class="lnk" id="lnkBackup">Backup</span>
   </div>
 </div>
@@ -834,7 +847,7 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
 <div class="sheet" id="backupSheet" role="dialog" aria-modal="true" aria-labelledby="bkTitle" aria-hidden="true">
   <button class="iconbtn close" id="bkClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   <h2 id="bkTitle">Backup &amp; restore</h2>
-  <p class="sub">Your tasks never leave this device. Snapshots are plain JSON you control.</p>
+  <p class="sub">Your tasks never leave this device. Snapshots are plain JSON you control. Merge keeps the newer copy of a task when both devices edited it.</p>
 
   <div class="group">
     <h3>Manual</h3>
@@ -843,7 +856,7 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
       <button class="btn accent" id="bkExport">Export</button>
     </div>
     <div class="opt">
-      <div class="txt"><b>Restore from file</b><span>Merge or replace from a snapshot.</span></div>
+      <div class="txt"><b>Restore from file</b><span>Merge keeps the newer edit. Replace is opt-in.</span></div>
       <button class="btn" id="bkImport">Restore…</button>
       <input type="file" id="bkFile" accept="application/json,.json" class="sr" />
     </div>
@@ -852,7 +865,7 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
   <div class="group" id="fsaGroup">
     <h3>Auto-backup <span class="kbd" style="text-transform:none;letter-spacing:0">folder</span></h3>
     <div class="opt">
-      <div class="txt"><b id="fsaLabel">Grant a backup folder</b><span id="fsaSub">App writes rotating snapshots after every change. Keeps last 10.</span></div>
+      <div class="txt"><b id="fsaLabel">Grant a backup folder</b><span id="fsaSub">Writes troplist-latest.json plus rotating dated snapshots. Keeps last 10 dated files.</span></div>
       <button class="btn" id="bkFolder">Choose folder…</button>
     </div>
     <div class="opt" id="fsaOffRow" style="display:none">
@@ -884,6 +897,7 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
       <div>Move down <span class="kbd">j</span></div>
       <div>Move up <span class="kbd">k</span></div>
       <div>Complete <span class="kbd">x</span></div>
+      <div>Snooze +1 day <span class="kbd">s</span></div>
       <div>Edit <span class="kbd">e</span></div>
       <div>Delete <span class="kbd">⌫</span></div>
       <div>Clear / close <span class="kbd">esc</span></div>
@@ -902,6 +916,8 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
       <div>Date <span class="kbd">jun 30</span></div>
       <div>Time <span class="kbd">3pm</span></div>
       <div>Next week <span class="kbd">next week</span></div>
+      <div>Repeat <span class="kbd">every fri</span></div>
+      <div>Every N <span class="kbd">every 2 days</span></div>
     </div>
   </div>
   <div class="group">
@@ -925,7 +941,7 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
 <div class="toast" id="toast" role="status"><span id="toastTxt"></span></div>
 
 <noscript><div style="max-width:560px;margin:60px auto;padding:0 24px;font-family:system-ui;color:#5d6168;text-align:center"><h1 style="color:#1a1c20">Tropical ToDos</h1><p>A calm, local-first to-do list that runs entirely in your browser. Please enable JavaScript to use it. Nothing is ever sent to a server.</p></div></noscript>
-<script src="app.js?v=1.2.6"></script>
+<script src="app.js?v=1.3.5"></script>
 <script src="soundscape.js?v=1.2.6"></script>
 <script src="ambient.js?v=1.3.2"></script>
 </body>

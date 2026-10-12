@@ -3,8 +3,8 @@ const vm=require('node:vm');
 const assert=require('node:assert/strict');
 const source=readFileSync('app.js','utf8');
 const context=vm.createContext({navigator:{language:'en-US'}, Date});
-vm.runInContext(source.slice(source.indexOf('const Parse ='),source.indexOf('const $ ='))+'\nglobalThis.api={Parse,Classify,Vocabulary,fuzzy};',context);
-const {Parse,Classify,Vocabulary,fuzzy}=context.api;
+vm.runInContext(source.slice(source.indexOf('const Parse ='),source.indexOf('const $ ='))+'\nglobalThis.api={Parse,Dates,Classify,Vocabulary,fuzzy};',context);
+const {Parse,Dates,Classify,Vocabulary,fuzzy}=context.api;
 let checks=0;
 for(const [title,category] of [
  ['Touch base with teammates','work'],['Prepare a slide deck','work'],['Proofreading client reports','work'],
@@ -24,6 +24,16 @@ for (const text of ['Wash the clothes','monitor deployment','wedding arrangement
 const parsed=Parse.parse('Wash the clothes #home tomorrow 3pm');
 assert.equal(parsed.title,'Wash the clothes');assert.equal(parsed.tags[0],'home');assert.equal(new Date(parsed.due).getHours(),15);checks++;
 assert.ok(fuzzy('invce','invoice')>-1);checks++;
+const everyFri=Parse.parse('Water plants every friday');
+assert.equal(everyFri.title,'Water plants');assert.equal(everyFri.repeat && everyFri.repeat.weekday,5);assert.ok(everyFri.due);checks++;
+const everyDay=Parse.parse('Take pills every day 8am');
+assert.equal(everyDay.title,'Take pills');assert.equal(everyDay.repeat.every,1);assert.equal(everyDay.repeat.unit,'day');assert.equal(new Date(everyDay.due).getHours(),8);checks++;
+const everyN=Parse.parse('Review every 2 weeks');
+assert.equal(everyN.title,'Review');assert.equal(everyN.repeat.every,2);assert.equal(everyN.repeat.unit,'week');checks++;
+assert.equal(Parse.parse('Call Mom Friday 3pm').repeat,null);checks++;
+const fri=new Date(2026,9,16,15,0,0); // Friday
+const next=new Date(Dates.advanceDue(fri.getTime(),{every:1,unit:'week',weekday:5},true));
+assert.equal(next.getDay(),5);assert.ok(next.getTime()>fri.getTime());checks++;
 console.log(`${checks} language regression cases passed`);
 
 (async()=>{
@@ -32,8 +42,8 @@ console.log(`${checks} language regression cases passed`);
  const btn={dataset:{},setAttribute(){},addEventListener(e,fn){buttonHandler=fn;}};
  const classes={add(){},remove(){},toggle(){}};
  const video={play(){return Promise.resolve();},style:{},classList:classes,pause(){},getAttribute(){return '';},setAttribute(){},addEventListener(){},load(){},readyState:0};
- const document={hidden:false,body:{classList:classes},getElementById(id){return {scene:{classList:classes},btnAmbient:btn,waves,vidA:video,vidB:video}[id];},addEventListener(e,fn){(listeners[e]??=[]).push(fn);}};
- vm.runInNewContext(readFileSync('ambient.js','utf8'),{AmbientPlayer:class extends require('../soundscape.js') { constructor(media){super(media,null);} },document,window:{addEventListener(e,f){windowListeners[e]=f;}},matchMedia:()=>({matches:false,addEventListener(){}}),STORE:{getMeta:async()=>null,setMeta:async()=>{}},setTimeout:()=>1,clearTimeout(){},Promise});
+ const document={hidden:false,body:{classList:classes},getElementById(id){return {scene:{classList:classes,style:{setProperty(){}}},btnAmbient:btn,waves,vidA:video,vidB:video}[id];},addEventListener(e,fn){(listeners[e]??=[]).push(fn);}};
+ vm.runInNewContext(readFileSync('ambient.js','utf8'),{AmbientPlayer:class extends require('../soundscape.js') { constructor(media){super(media,null);} },document,window:{innerWidth:390,innerHeight:844,addEventListener(e,f){windowListeners[e]=f;}},matchMedia:()=>({matches:false,addEventListener(){}}),STORE:{getMeta:async()=>null,setMeta:async()=>{}},setTimeout:()=>1,clearTimeout(){},Promise});
  const settle=()=>new Promise(r=>setImmediate(r));await settle();
  const gesture=()=>listeners.click.forEach(f=>f({target:{closest:()=>null}}));
  gesture();await settle();assert.equal(paused,true);

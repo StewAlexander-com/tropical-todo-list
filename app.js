@@ -115,12 +115,12 @@ const Parse = (() => {
     return date;
   }
 
-  // returns { title, tags:[], due:Date|null, hasTime:bool, matched:[strings] }
+  // returns { title, tags:[], due:Date|null, hasTime:bool, matched:[], repeat }
   function parse(raw) {
     let text = ' ' + raw.trim() + ' ';
     const now = new Date();
     const matched = [];
-    let due = null, hasTime = false;
+    let due = null, hasTime = false, repeat = null;
 
     // --- tags ---
     const tags = [];
@@ -149,6 +149,12 @@ const Parse = (() => {
       [/\bthis weekend\b/i, () => { const d=new Date(now); d.setDate(d.getDate()+((6-d.getDay()+7)%7||6)); set(d); }],
       [/\btonight\b/i, () => { set(now); if(th==null){th=20;tm=0;hasTime=true;} }],
       [/\bin (\d{1,3}) (day|days|week|weeks|month|months)\b/i, (m,n,u)=>{ const d=new Date(now); n=+n; if(/day/.test(u))d.setDate(d.getDate()+n); else if(/week/.test(u))d.setDate(d.getDate()+n*7); else d.setMonth(d.getMonth()+n); set(d); }],
+      // Recurrence — before bare weekdays so "every fri" is not stripped to "every".
+      // First due is the next occurrence (today counts). Completing advances it.
+      [/\bevery\s+(\d{1,2})\s+(days?|weeks?)\b/i, (m,n,u)=>{ n=+n; if(n<1)return; repeat={ every:n, unit:/week/i.test(u)?'week':'day' }; set(now); }],
+      [/\bevery\s+day\b/i, ()=>{ repeat={ every:1, unit:'day' }; set(now); }],
+      [/\bevery\s+week\b/i, ()=>{ repeat={ every:1, unit:'week' }; set(now); }],
+      [new RegExp('\\bevery\\s+('+DAY_FORMS+')\\b','i'), (m,dn)=>{ const t=DAY_LOOKUP[dn.toLowerCase()]; if(t==null)return; repeat={ every:1, unit:'week', weekday:t }; const d=new Date(now); d.setDate(d.getDate()+((t-d.getDay()+7)%7)); set(d); }],
       // Weekdays: ONLY exact abbreviations or full names (no open [a-z]* tail that
       // would let "satisfy"->sat, "monitor"->mon, "wedding"->wed, etc.)
       [new RegExp('\\bnext\\s+('+DAY_FORMS+')\\b','i'), (m,dn)=>{ const t=DAY_LOOKUP[dn.toLowerCase()]; const d=new Date(now); let diff=(t-d.getDay()+7)%7; diff=diff===0?7:diff; diff+=7; d.setDate(d.getDate()+diff); set(d); }],
@@ -215,7 +221,10 @@ const Parse = (() => {
       title = title.replace(/^\s*[-\u2013\u2014:]\s*/, '');
       title = title.replace(/\s{2,}/g, ' ').trim();
     }
-    return { title, tags: [...new Set(tags)], due: due ? due.getTime() : null, hasTime, matched };
+    if (repeat) {
+      title = title.replace(/\s+\bevery\b\s*$/i, '').replace(/^\s*\bevery\b\s+/i, '').replace(/\s{2,}/g, ' ').trim();
+    }
+    return { title, tags: [...new Set(tags)], due: due ? due.getTime() : null, hasTime, matched, repeat };
   }
   return { parse };
 })();
@@ -259,7 +268,34 @@ const Dates = (() => {
     if (d <= today + 2*86400000) return 'soon';
     return '';
   }
-  return { bucketOf, relLabel, urgency, sod };
+  const WEEKDAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  function normalizeRepeat(r) {
+    if (!r || typeof r !== 'object') return null;
+    const every = Math.max(1, Math.min(99, +r.every || 1));
+    const unit = r.unit === 'week' ? 'week' : r.unit === 'day' ? 'day' : null;
+    if (!unit) return null;
+    const out = { every, unit };
+    if (r.weekday != null && r.weekday >= 0 && r.weekday <= 6) out.weekday = r.weekday | 0;
+    return out;
+  }
+  function repeatLabel(r) {
+    r = normalizeRepeat(r); if (!r) return '';
+    if (r.weekday != null) return 'every ' + WEEKDAYS[r.weekday];
+    if (r.unit === 'day') return r.every === 1 ? 'every day' : `every ${r.every} days`;
+    return r.every === 1 ? 'every week' : `every ${r.every} weeks`;
+  }
+  function advanceDue(due, repeat, hasTime) {
+    const r = normalizeRepeat(repeat); if (!r) return due;
+    const d = new Date(due != null ? due : Date.now());
+    if (hasTime) { /* keep clock */ } else { d.setHours(0,0,0,0); }
+    if (r.weekday != null) {
+      d.setDate(d.getDate() + 1);
+      while (d.getDay() !== r.weekday) d.setDate(d.getDate() + 1);
+    } else if (r.unit === 'week') d.setDate(d.getDate() + 7 * r.every);
+    else d.setDate(d.getDate() + r.every);
+    return d.getTime();
+  }
+  return { bucketOf, relLabel, urgency, sod, normalizeRepeat, repeatLabel, advanceDue };
 })();
 
 const BUCKETS = [
@@ -440,6 +476,7 @@ let catPickId = null;     // task id showing the 3-box picker
 let suppressCatClickUntil = 0;
 let catLearned = { work: [], home: [], misc: [] };
 let editingId = null;
+let hideDone = false;
 
 const ICON = {
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
@@ -451,6 +488,7 @@ const ICON = {
   home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 13 12 5.5 20.5 13"/><path d="M5.8 13 12 7.8 18.2 13"/><path d="M7.5 13v6.5M16.5 13v6.5"/><path d="M5 19.5h14"/><path d="M12 5.5v2"/></svg>',
   misc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 16.5c-3.8.2-6.7-2.4-6.7-5.6 0-3.4 2.7-5.6 5.6-5.2 2.2.3 3.7 2.2 3.7 4.4 0 1.9-1.3 3.4-3 3.4-1.3 0-2.3-.9-2.3-2.1 0-.9.6-1.6 1.5-1.6"/><path d="M15.8 14.8c1.6 1.2 3.4 1.6 4.6.6"/><path d="M8.2 17.2c-1.3.9-3 .7-3.8-.6"/><path d="M9.2 8.2c-.8-1.2-1-2.6-.2-3.4"/></svg>',
   file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h16v11H4z"/><path d="M8 8V5.5h8V8"/><path d="M4 13h16"/></svg>',
+  repeat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1v4h-4"/><path d="M7 23v-4h4"/><path d="M20 7a8 8 0 0 0-14.9 3"/><path d="M4 17a8 8 0 0 0 14.9-3"/></svg>',
 };
 
 function esc(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -492,7 +530,7 @@ function matches(t) {
   if (catFilter && t.category !== catFilter) return false;
   if (tagFilter && !t.tags.includes(tagFilter)) return false;
   if (!query) return true;
-  const hay = t.title + ' ' + t.tags.map(x => '#' + x).join(' ') + ' ' + (t.notes || '') + ' ' + (t.category ? Classify.LABELS[t.category] : '');
+  const hay = t.title + ' ' + t.tags.map(x => '#' + x).join(' ') + ' ' + (t.notes || '') + ' ' + (t.category ? Classify.LABELS[t.category] : '') + ' ' + Dates.repeatLabel(t.repeat);
   return fuzzy(query, hay) > -1 || Vocabulary.matches(query, hay) || dateMatch(query, t);
 }
 function searchScore(t) {
@@ -511,6 +549,7 @@ function render() {
   view = [];
 
   let pool = tasks.filter(matches);
+  if (hideDone) pool = pool.filter(t => !t.done);
 
   // active filter chip
   const af = $('#activeFilter');
@@ -531,6 +570,7 @@ function render() {
   const open = tasks.filter(t => !t.done).length;
   $('#statOpen').textContent = `${open} open`;
   $('#hdrCount').textContent = tasks.length ? `· ${open} open` : '';
+  syncHideDone();
 
   if (listCollapsed) {
     sel = -1;
@@ -572,6 +612,12 @@ function render() {
   syncCatStrip();
 }
 
+function syncHideDone() {
+  const n = $('#lnkHideDone'); if (!n) return;
+  const doneN = tasks.filter(t => t.done).length;
+  n.hidden = doneN === 0 && !hideDone;
+  n.textContent = hideDone ? (doneN ? `Show done (${doneN})` : 'Show done') : 'Hide done';
+}
 function syncCatStrip() {
   Classify.IDS.forEach(id => {
     const n = tasks.filter(t => t.category === id).length;
@@ -608,12 +654,22 @@ function taskRow(t) {
   if (editingId === t.id) {
     const inp = el('input', 'task-edit');
     inp.value = t.raw || t.title; inp.setAttribute('aria-label', 'Edit task');
+    const note = el('textarea', 'task-note-edit');
+    note.rows = 2;
+    note.value = t.notes || '';
+    note.placeholder = 'Note, if you need one';
+    note.setAttribute('aria-label', 'Task note');
+    const save = () => { if (editingId === t.id) commitEdit(t.id, inp.value, note.value); };
     inp.onkeydown = e => {
-      if (e.key === 'Enter') { commitEdit(t.id, inp.value); }
+      if (e.key === 'Enter') { e.preventDefault(); save(); }
       else if (e.key === 'Escape') { editingId = null; render(); }
     };
-    inp.onblur = () => { if (editingId === t.id) commitEdit(t.id, inp.value); };
-    body.appendChild(inp);
+    note.onkeydown = e => {
+      if (e.key === 'Escape') { editingId = null; render(); }
+    };
+    inp.onblur = e => { if (e.relatedTarget !== note) save(); };
+    note.onblur = e => { if (e.relatedTarget !== inp) save(); };
+    body.append(inp, note);
     row.appendChild(body);
     requestAnimationFrame(() => { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); });
     return row;
@@ -621,12 +677,20 @@ function taskRow(t) {
 
   const title = el('div', 'task-title'); title.textContent = t.title || '(untitled)';
   body.appendChild(title);
+  if ((t.notes || '').trim()) {
+    const n = el('div', 'task-note'); n.textContent = t.notes.trim();
+    body.appendChild(n);
+  }
 
   const meta = el('div', 'task-meta');
   if (t.due != null) {
     const u = Dates.urgency(t.due);
     const due = el('span', 'due' + (u ? ' ' + u : ''), ICON.clock + `<span>${esc(Dates.relLabel(t.due, t.hasTime))}</span>`);
     meta.appendChild(due);
+  }
+  if (t.repeat) {
+    const rpt = el('span', 'due repeat', ICON.repeat + `<span>${esc(Dates.repeatLabel(t.repeat))}</span>`);
+    meta.appendChild(rpt);
   }
   t.tags.forEach(tag => {
     const chip = el('span', 'tag', '#' + esc(tag));
@@ -742,7 +806,7 @@ async function addFromInput(raw) {
   }
   const p = Parse.parse(raw);
   const category = boxForParsed(p, raw, pendingCat);
-  const t = { id: uid(), title: cleanTitle(p), raw, tags: p.tags, due: p.due, hasTime: p.hasTime, done: false, created: Date.now(), category: category || null };
+  const t = { id: uid(), title: cleanTitle(p), raw, tags: p.tags, due: p.due, hasTime: p.hasTime, done: false, created: Date.now(), updatedAt: Date.now(), category: category || null, repeat: Dates.normalizeRepeat(p.repeat), notes: '' };
   if (category) rememberChoice(t.title, category);
   pendingCat = null;
   tasks.push(t);
@@ -771,17 +835,48 @@ function syncAddIdle() {
 }
 async function toggle(id) {
   const t = tasks.find(x => x.id === id); if (!t) return;
+  if (t.repeat && !t.done) {
+    const prevDue = t.due, prevCompleted = t.completedAt;
+    t.due = Dates.advanceDue(t.due, t.repeat, t.hasTime);
+    t.completedAt = Date.now();
+    t.updatedAt = Date.now();
+    await STORE.put(t); render(); afterChange();
+    toast('Next ' + Dates.relLabel(t.due, t.hasTime), 'Undo', async () => {
+      const cur = tasks.find(x => x.id === id); if (!cur) return;
+      cur.due = prevDue; cur.completedAt = prevCompleted; cur.updatedAt = Date.now();
+      await STORE.put(cur); render(); afterChange();
+    });
+    return;
+  }
   t.done = !t.done; t.completedAt = t.done ? Date.now() : null;
+  t.updatedAt = Date.now();
   await STORE.put(t); render(); afterChange();
   if (t.done) maybeCelebrate();
 }
+async function snooze(id) {
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  const prev = { due: t.due, hasTime: t.hasTime, done: t.done, completedAt: t.completedAt };
+  const d = new Date(t.due != null ? t.due : Date.now());
+  if (t.due == null) { d.setHours(0,0,0,0); t.hasTime = false; }
+  d.setDate(d.getDate() + 1);
+  t.due = d.getTime(); t.done = false; t.completedAt = null; t.updatedAt = Date.now();
+  await STORE.put(t); render(); afterChange();
+  toast(Dates.relLabel(t.due, t.hasTime), 'Undo', async () => {
+    const cur = tasks.find(x => x.id === id); if (!cur) return;
+    Object.assign(cur, prev, { updatedAt: Date.now() });
+    await STORE.put(cur); render(); afterChange();
+  });
+}
 function startEdit(id) { editingId = id; catPickId = null; render(); }
-async function commitEdit(id, raw) {
+async function commitEdit(id, raw, notes) {
   const t = tasks.find(x => x.id === id); if (!t) { editingId = null; return render(); }
-  raw = raw.trim();
+  raw = String(raw || '').trim();
   if (!raw) { editingId = null; return removeTask(id, { label: 'Removed empty task' }); }
   const p = Parse.parse(raw);
   t.title = cleanTitle(p); t.raw = raw; t.tags = p.tags; t.due = p.due; t.hasTime = p.hasTime;
+  t.repeat = Dates.normalizeRepeat(p.repeat);
+  t.notes = String(notes != null ? notes : t.notes || '').trim();
+  t.updatedAt = Date.now();
   const tagBox = Classify.boxFromTags(p.tags);
   if (tagBox) { t.category = tagBox; rememberChoice(t.title, tagBox); }
   else if (!t.category && p.hasTime) {
@@ -961,7 +1056,21 @@ const Backup = (() => {
   let supported = 'showDirectoryPicker' in window;
 
   function snapshot() {
-    return { app: 'quiet', version: 1, exportedAt: new Date().toISOString(), count: tasks.length, tasks };
+    return { app: 'quiet', version: 2, exportedAt: new Date().toISOString(), count: tasks.length, tasks };
+  }
+  function taskStamp(t) {
+    return +t.updatedAt || +t.completedAt || +t.created || 0;
+  }
+  function mergeById(local, incoming) {
+    const byId = new Map(local.map(t => [t.id, t]));
+    let added = 0, updated = 0, kept = 0;
+    incoming.forEach(t => {
+      const cur = byId.get(t.id);
+      if (!cur) { byId.set(t.id, t); added++; return; }
+      if (taskStamp(t) > taskStamp(cur)) { byId.set(t.id, { ...cur, ...t }); updated++; }
+      else kept++;
+    });
+    return { tasks: [...byId.values()], added, updated, kept };
   }
   function stamp() {
     const d = new Date(), p = n => String(n).padStart(2,'0');
@@ -986,15 +1095,18 @@ const Backup = (() => {
           tags: Array.isArray(t.tags) ? t.tags : [], due: t.due ?? null,
           hasTime: !!t.hasTime, done: !!t.done, created: t.created || Date.now(), completedAt: t.completedAt ?? null,
           category: Classify.IDS.includes(t.category) ? t.category : null,
+          repeat: Dates.normalizeRepeat(t.repeat),
+          notes: typeof t.notes === 'string' ? t.notes : '',
+          updatedAt: t.updatedAt || t.created || Date.now(),
         }));
-        if (mode === 'replace') { await STORE.clear(); tasks = norm; }
-        else { // merge by id
-          const byId = new Map(tasks.map(t => [t.id, t]));
-          norm.forEach(t => byId.set(t.id, t));
-          tasks = [...byId.values()];
+        let added = 0, updated = 0, kept = 0;
+        if (mode === 'replace') { await STORE.clear(); tasks = norm; added = norm.length; }
+        else {
+          const m = mergeById(tasks, norm);
+          tasks = m.tasks; added = m.added; updated = m.updated; kept = m.kept;
         }
         await STORE.putMany(tasks);
-        cb(null, norm.length);
+        cb(null, { n: norm.length, added, updated, kept });
       } catch (e) { cb(e); }
     };
     r.onerror = () => cb(r.error);
@@ -1029,10 +1141,15 @@ const Backup = (() => {
     if (!dirHandle) return;
     try {
       if ((await dirHandle.queryPermission({ mode: 'readwrite' })) !== 'granted') return;
+      const payload = JSON.stringify(snapshot(), null, 2);
       const name = `quiet-backup_${stamp()}.json`;
       const fh = await dirHandle.getFileHandle(name, { create: true });
       const w = await fh.createWritable();
-      await w.write(JSON.stringify(snapshot(), null, 2)); await w.close();
+      await w.write(payload); await w.close();
+      // Stable name for a second device / Syncthing — always the newest full copy.
+      const latest = await dirHandle.getFileHandle('troplist-latest.json', { create: true });
+      const lw = await latest.createWritable();
+      await lw.write(payload); await lw.close();
       // rotation: keep newest KEEP
       const files = [];
       for await (const [n, handle] of dirHandle.entries()) {
@@ -1095,6 +1212,7 @@ function updateHint(raw) {
   const selected = pendingCat || s.tagHit || (p.hasTime && s.top) || null;
   const bits = [];
   if (p.due != null) bits.push(`due <b>${esc(Dates.relLabel(p.due, p.hasTime))}</b>`);
+  if (p.repeat) bits.push(`repeats <b>${esc(Dates.repeatLabel(p.repeat))}</b>`);
   p.tags.forEach(t => bits.push(`<b>#${esc(t)}</b>`));
   const picks = Classify.IDS.map(id => {
     const on = selected === id;
@@ -1146,7 +1264,7 @@ function refreshBackupUI() {
   g.style.display = '';
   const on = Backup.isOn();
   $('#fsaLabel').textContent = on ? `Backing up to “${Backup.folderName()}”` : 'Grant a backup folder';
-  $('#fsaSub').textContent = on ? 'Rotating snapshots written after every change. Keeps last 10.' : 'App writes rotating snapshots after every change. Keeps last 10.';
+  $('#fsaSub').textContent = on ? 'Writes troplist-latest.json plus dated snapshots after every change. Keeps last 10 dated files.' : 'Writes troplist-latest.json plus rotating dated snapshots. Keeps last 10 dated files.';
   $('#bkFolder').textContent = on ? 'Change folder…' : 'Choose folder…';
   $('#fsaOffRow').style.display = on ? '' : 'none';
 }
@@ -1180,6 +1298,7 @@ document.addEventListener('keydown', e => {
     case 'j': e.preventDefault(); if (view.length){ sel = Math.min(view.length-1, sel+1); if(sel<0)sel=0; paintSel(); } break;
     case 'k': e.preventDefault(); if (view.length){ sel = Math.max(0, sel-1); paintSel(); } break;
     case 'x': case ' ': if (sel>=0){ e.preventDefault(); toggle(view[sel]); } break;
+    case 's': if (sel>=0){ e.preventDefault(); snooze(view[sel]); } break;
     case 'e': if (sel>=0){ e.preventDefault(); startEdit(view[sel]); } break;
     case 'Backspace': case 'Delete': if (sel>=0){ e.preventDefault(); removeTask(view[sel]); } break;
     case '?': e.preventDefault(); openSheet('helpSheet'); break;
@@ -1268,6 +1387,11 @@ function wire() {
     }
   });
 
+  $('#lnkHideDone').onclick = () => {
+    hideDone = !hideDone;
+    STORE.setMeta('hideDone', hideDone).catch(() => {});
+    sel = -1; render();
+  };
   $('#btnBackup').onclick = () => openSheet('backupSheet');
   $('#lnkBackup').onclick = () => openSheet('backupSheet');
   $('#btnHelp').onclick = () => openSheet('helpSheet');
@@ -1292,7 +1416,8 @@ function wire() {
     Backup.importFile(f, mode, (err, n) => {
       if (err) { status('Could not read that file — ' + err.message + '. Your tasks are unchanged.', 'err'); return; }
       render(); afterChange();
-      status(`${mode === 'replace' ? 'Replaced' : 'Merged'} — ${n} task${n!==1?'s':''} loaded.`, 'ok');
+      if (mode === 'replace') status(`Replaced — ${n.n} task${n.n!==1?'s':''} loaded.`, 'ok');
+      else status(`Merged — ${n.added} added, ${n.updated} newer, ${n.kept} kept.`, 'ok');
     });
   };
   $('#bkFolder').onclick = async () => {
@@ -1335,6 +1460,7 @@ async function boot() {
       };
     }
   } catch (e) {}
+  try { hideDone = (await STORE.getMeta('hideDone')) === true; } catch (e) {}
   await Backup.restoreHandle();
   render();
 }
