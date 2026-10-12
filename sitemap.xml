@@ -3,12 +3,16 @@
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://www.troplist.com/</loc>
-    <lastmod>2026-08-30</lastmod>
+    <lastmod>2026-10-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <image:image>
-      <image:loc>https://www.troplist.com/icons/og-image.jpg?v=20260830b</image:loc>
-      <image:title>Tropical ToDos — a calm, local-first to-do list</image:title>
+      <image:loc>https://www.troplist.com/icons/og-image.jpg?v=20261012c</image:loc>
+      <image:title>Troplist.com — a calm list for unhurried days</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://www.troplist.com/icons/og-image-square.jpg?v=20261012c</image:loc>
+      <image:title>Troplist.com — a calm list for unhurried days</image:title>
     </image:image>
   </url>
 </urlset>

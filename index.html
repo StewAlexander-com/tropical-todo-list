@@ -8,8 +8,8 @@
 <meta name="theme-color" content="#2aa7b8" media="(prefers-color-scheme: light)" />
 
 <!-- Primary SEO -->
-<title>Troplist — a calm, local-first to-do list</title>
-<meta name="description" content="Tropical ToDos is a calm, private to-do list with a cinematic beach backdrop and gentle ocean waves. Natural-language tasks, fuzzy search, offline-first PWA. Your tasks never leave your device." />
+<title>Troplist.com — a calm list for unhurried days</title>
+<meta name="description" content="Troplist.com is a calm, private to-do list with a cinematic beach backdrop and gentle ocean waves. Natural-language tasks, fuzzy search, offline-first PWA. Your tasks never leave your device." />
 <meta name="keywords" content="todo list, to-do app, tasks, productivity, PWA, offline, private, local-first, beach, calm, tropical" />
 <meta name="author" content="StewAlexander.com" />
 <meta name="application-name" content="Troplist" />
@@ -21,27 +21,43 @@
 <link rel="canonical" href="https://www.troplist.com/" />
 <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
 
-<!-- Open Graph — Facebook, Messenger, LinkedIn, iMessage/Messages -->
+<!-- Open Graph — Facebook, Messenger, LinkedIn, Slack, Discord, Telegram, WhatsApp, iMessage -->
 <meta property="og:type" content="website" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:site_name" content="Tropical ToDos" />
-<meta property="og:title" content="Tropical ToDos — a calm, local-first to-do list" />
-<meta property="og:description" content="A private to-do list with a cinematic beach backdrop and gentle ocean waves. Natural-language tasks, offline-first, your data never leaves your device." />
+<meta property="og:site_name" content="Troplist.com" />
+<meta property="og:title" content="Troplist.com — a calm list for unhurried days" />
+<meta property="og:description" content="A private, local-first to-do list on a cinematic beach. Natural-language tasks, offline-first — your data never leaves this device." />
 <meta property="og:url" content="https://www.troplist.com/" />
-<meta property="og:image" content="https://www.troplist.com/icons/og-image.jpg?v=20260830b" />
-<meta property="og:image:secure_url" content="https://www.troplist.com/icons/og-image.jpg?v=20260830b" />
+<meta property="og:image" content="https://www.troplist.com/icons/og-image.jpg?v=20261012c" />
+<meta property="og:image:secure_url" content="https://www.troplist.com/icons/og-image.jpg?v=20261012c" />
 <meta property="og:image:type" content="image/jpeg" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:image:alt" content="Tropical ToDos — palm tree on a beach; troplist.com" />
-<link rel="image_src" href="https://www.troplist.com/icons/og-image.jpg?v=20260830b" />
+<meta property="og:image:alt" content="Troplist.com in Yellowtail script on a lava plate over a photo-real tropical beach" />
+<meta property="og:image" content="https://www.troplist.com/icons/og-image-square.jpg?v=20261012c" />
+<meta property="og:image:secure_url" content="https://www.troplist.com/icons/og-image-square.jpg?v=20261012c" />
+<meta property="og:image:type" content="image/jpeg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="1200" />
+<meta property="og:image:alt" content="Troplist.com in Yellowtail script on a lava plate over a photo-real tropical beach" />
+<link rel="image_src" href="https://www.troplist.com/icons/og-image.jpg?v=20261012c" />
 
-<!-- X / Twitter -->
+<!-- Generic / Google / older scrapers -->
+<meta itemprop="name" content="Troplist.com" />
+<meta itemprop="description" content="A private, local-first to-do list on a cinematic beach. Natural-language tasks, offline-first — your data never leaves this device." />
+<meta itemprop="image" content="https://www.troplist.com/icons/og-image.jpg?v=20261012c" />
+<meta name="thumbnail" content="https://www.troplist.com/icons/og-image.jpg?v=20261012c" />
+<meta name="image" content="https://www.troplist.com/icons/og-image.jpg?v=20261012c" />
+
+<!-- X / Twitter — large photo card -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="Tropical ToDos — a calm, local-first to-do list" />
-<meta name="twitter:description" content="A private to-do list with a cinematic beach backdrop and gentle ocean waves. Offline-first; your data never leaves your device." />
-<meta name="twitter:image" content="https://www.troplist.com/icons/og-image.jpg?v=20260830b" />
-<meta name="twitter:image:alt" content="Tropical ToDos — palm tree on a beach; troplist.com" />
+<meta name="twitter:title" content="Troplist.com — a calm list for unhurried days" />
+<meta name="twitter:description" content="A private, local-first to-do list on a cinematic beach. Offline-first — your data never leaves this device." />
+<meta name="twitter:url" content="https://www.troplist.com/" />
+<meta name="twitter:image" content="https://www.troplist.com/icons/og-image.jpg?v=20261012c" />
+<meta name="twitter:image:alt" content="Troplist.com in Yellowtail script on a lava plate over a photo-real tropical beach" />
+<meta name="twitter:image:width" content="1200" />
+<meta name="twitter:image:height" content="630" />
 
 <link rel="manifest" href="manifest.webmanifest?v=1.3.1" />
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-v1.3.0-32.png" />
@@ -815,14 +831,17 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
 {
   "@context": "https://schema.org",
   "@type": "WebApplication",
-  "name": "Tropical ToDos",
-  "alternateName": "troplist",
+  "name": "Troplist.com",
+  "alternateName": ["Troplist", "Tropical ToDos"],
   "applicationCategory": "ProductivityApplication",
   "operatingSystem": "Any (Progressive Web App)",
   "browserRequirements": "Requires JavaScript. Works offline after first visit.",
   "description": "A calm, local-first to-do list with a cinematic beach backdrop and gentle ocean waves. Natural-language tasks, fuzzy search, offline-first. Your tasks never leave your device.",
   "url": "https://www.troplist.com/",
-  "image": "https://www.troplist.com/icons/og-image.jpg?v=20260830b",
+  "image": [
+    "https://www.troplist.com/icons/og-image.jpg?v=20261012c",
+    "https://www.troplist.com/icons/og-image-square.jpg?v=20261012c"
+  ],
   "author": {
     "@type": "Person",
     "name": "Stewart Alexander",
@@ -846,15 +865,15 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
   "mainEntity": [
     {
       "@type": "Question",
-      "name": "What is Tropical ToDos?",
+      "name": "What is Troplist.com?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Tropical ToDos is a calm, local-first to-do list that runs entirely in your browser as a progressive web app. It has a cinematic beach backdrop, natural-language quick-add for dates and tags, Work / Home / Misc / Groceries / Errands boxes you can rename, and fuzzy search."
+        "text": "Troplist.com is a calm, local-first to-do list that runs entirely in your browser as a progressive web app. It has a cinematic beach backdrop, natural-language quick-add for dates and tags, Work / Home / Misc / Groceries / Errands boxes you can rename, and fuzzy search."
       }
     },
     {
       "@type": "Question",
-      "name": "Does Tropical ToDos send my tasks to a server?",
+      "name": "Does Troplist.com send my tasks to a server?",
       "acceptedAnswer": {
         "@type": "Answer",
         "text": "No. Tasks are stored only in your browser (IndexedDB). There is no account and no server-side task database. Optional backups are files you export or a folder you grant on your device."
@@ -865,7 +884,7 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
       "name": "Does it work offline?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Yes. After the first visit, the app shell is cached by a service worker so you can use Tropical ToDos without a network connection."
+        "text": "Yes. After the first visit, the app shell is cached by a service worker so you can use Troplist.com without a network connection."
       }
     },
     {
@@ -1095,7 +1114,7 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
 
 <div class="toast" id="toast" role="status"><span id="toastTxt"></span></div>
 
-<noscript><div style="max-width:560px;margin:60px auto;padding:0 24px;font-family:system-ui;color:#5d6168;text-align:center"><h1 style="color:#1a1c20">Tropical ToDos</h1><p>A calm, local-first to-do list that runs entirely in your browser. Please enable JavaScript to use it. Nothing is ever sent to a server.</p></div></noscript>
+<noscript><div style="max-width:560px;margin:60px auto;padding:0 24px;font-family:system-ui;color:#5d6168;text-align:center"><h1 style="color:#1a1c20">Troplist.com</h1><p>A calm, local-first to-do list that runs entirely in your browser. Please enable JavaScript to use it. Nothing is ever sent to a server.</p></div></noscript>
 <script src="app.js?v=1.3.12"></script>
 <script src="soundscape.js?v=1.2.6"></script>
 <script src="ambient.js?v=1.3.2"></script>

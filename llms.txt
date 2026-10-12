@@ -1,4 +1,4 @@
-# Tropical ToDos
+# Troplist.com
 > A calm, local-first to-do list with a cinematic beach backdrop. Private by design — tasks stay in your browser.
 
 Canonical: https://www.troplist.com/

@@ -2,3 +2,4 @@ node_modules/
 _qa_*.png
 
 _*.png
+_build/fonts/

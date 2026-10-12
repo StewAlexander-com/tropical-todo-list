@@ -76,6 +76,11 @@ check(!/\.cat-cell:focus-within \.cat-rename/.test(html),'folder tap focus does 
 check(/pointerType !== 'touch'/.test(app) && /startRename\(id\)/.test(app),'press-and-hold on touch starts rename');
 check(/contextmenu/.test(app),'long-press does not open the iOS callout');
 check(/Yellowtail/.test(html) && /Troplist<span class="tld"[^>]*>\.com<\/span>/.test(html),'wordmark is Troplist.com in Yellowtail');
+check(/og:title" content="Troplist\.com/.test(html) && /og:site_name" content="Troplist\.com/.test(html),'share card names Troplist.com');
+check(!/og:title" content="Tropical ToDos/.test(html) && !/og:image:alt" content="Tropical ToDos/.test(html),'share card does not say Tropical ToDos');
+check(/og-image\.jpg\?v=20261012c/.test(html) && /og-image-square\.jpg\?v=20261012c/.test(html),'share images are the photo-real Troplist.com cards');
+check(/twitter:card" content="summary_large_image/.test(html) && /twitter:url" content="https:\/\/www\.troplist\.com/.test(html),'X card is a large Troplist.com photo');
+check(/itemprop="name" content="Troplist\.com/.test(html) && /itemprop="image" content="https:\/\/www\.troplist\.com\/icons\/og-image\.jpg/.test(html),'generic scrapers get Troplist.com name and image');
 check(/Permanent\+Marker/.test(html) && /Permanent Marker/.test(html),'tagline uses Permanent Marker');
 check(/A Happy Little App by/.test(html) && /href="https:\/\/stewalexander\.com\/"/.test(html),'colophon credits Stew Alexander');
 check(/Pacifico/.test(html) && /\.credit \{[\s\S]*?font-family: var\(--hand\)/.test(html),'colophon uses Pacifico');
