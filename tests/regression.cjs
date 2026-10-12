@@ -9,8 +9,8 @@ let checks=0;
 for(const [title,category] of [
  ['Touch base with teammates','work'],['Prepare a slide deck','work'],['Proofreading client reports','work'],
  ['Wash the clothes','home'],['Cut the grass','home'],['Take the bins out','home'],['Tidy up the pantry','home'],
- ['Food shopping','home'],['Visit the chemist','misc'],['Book a holiday','misc'],['Go to the fitness centre','misc'],
- ['Pay invoice','work'],['Buy milk','home']]) {
+ ['Food shopping','groceries'],['Visit the chemist','errands'],['Book a holiday','misc'],['Go to the fitness centre','misc'],
+ ['Pay invoice','work'],['Buy milk','groceries']]) {
  assert.equal(Classify.suggest(title,[],null,false,{},'').top,category,title);checks++;
 }
 for(const [q,t,expected] of [['holiday','Book a vacation',true],['laundry','Wash the clothes',true],['slides','Prepare slide deck',true],['exercise','Workout',true],['car','carpet',false],['home','homework',false],['invoice','Invite friends',false]]) {

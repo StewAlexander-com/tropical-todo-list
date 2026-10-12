@@ -373,21 +373,31 @@ const Vocabulary = (() => {
 })();
 
 const Classify = (() => {
-  const IDS = ['work', 'home', 'misc'];
-  const LABELS = { work: 'Work', home: 'Home', misc: 'Misc' };
+  // IDs are the folder identity (stored on tasks, used by the lexicon).
+  // LABELS are display names the user can change; suggestions still return IDs.
+  const IDS = ['errands', 'groceries', 'home', 'work', 'misc'];
+  const DEFAULTS = { work: 'Work', home: 'Home', misc: 'Misc', groceries: 'Groceries', errands: 'Errands' };
+  const LABELS = { ...DEFAULTS };
   const STOP = new Set(['the','a','an','to','for','and','or','of','in','on','at','my','our','your','with','from','by','is','be','this','that','it','as','due','task','todo','please','just','need','get','make','take','me']);
   const LEX = {
     work: 'meeting meetings standup invoice invoicing invoiced bill bills billing billed billable client clients email emails slack zoom call calls conference webinar deadline deliverable sprint ticket jira deploy release office coworker boss manager payroll paycheck salary expense reimbursement timesheet onboard onboarding interview resume linkedin presentation deck spreadsheet budget forecast contract proposal vendor stakeholder report reporting debug backend frontend retro retrospective roadmap spec launch customer sales lead crm commute laptop agenda minutes followup blocker planning performance colleague colleagues accounting consultant consulting contractor repo github gitlab review reviews okrs kpi kpis qbr codebase'.split(' '),
-    home: 'grocery groceries supermarket laundry dishes dishwasher vacuum mop trash recycling kids kid child children school pickup dropoff daycare vet veterinarian dog cat pet lawn mow garden plants plumber electrician repair leak fridge oven dinner cook cooking meal family spouse partner bedtime homework mortgage rent landlord apartment house kitchen bathroom bedroom closet ikea assemble paint furniture neighbor drywall gutters hvac clean cleaning organize pantry litter chores chore housework babysit babysitter milk eggs bread diapers'.split(' '),
-    misc: 'gift gifts birthday anniversary travel trip flight hotel vacation hobby gym workout errand errands car oil tires dmv registration library dentist pharmacy haircut donate volunteer concert tickets museum passport visa packing pack suitcase souvenir'.split(' '),
+    home: 'laundry dishes dishwasher vacuum mop trash recycling kids kid child children school pickup dropoff daycare vet veterinarian dog cat pet lawn mow garden plants plumber electrician repair leak fridge oven dinner cook cooking meal family spouse partner bedtime homework mortgage rent landlord apartment house kitchen bathroom bedroom closet ikea assemble paint furniture neighbor drywall gutters hvac clean cleaning organize pantry litter chores chore housework babysit babysitter diapers'.split(' '),
+    misc: 'gift gifts birthday anniversary travel trip flight hotel vacation hobby gym workout donate volunteer concert tickets museum passport visa packing pack suitcase souvenir'.split(' '),
+    groceries: 'grocery groceries supermarket milk eggs bread produce aisle checkout basket cart'.split(' '),
+    errands: 'errand errands car oil tires dmv registration library dentist pharmacy haircut dryclean postoffice bank atm'.split(' '),
   };
   const SETS = Object.fromEntries(IDS.map(id => [id, new Set(Vocabulary.tokenize(LEX[id].join(" ")))]));
 
   function tokenize(s) {
     return Vocabulary.tokenize(s).filter(t => t.length >= 2 && !STOP.has(t));
   }
+  function slug(s) {
+    return String(s || '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+  }
+  function blank() { return Object.fromEntries(IDS.map(id => [id, 0])); }
+  function labelOf(id) { return LABELS[id] || DEFAULTS[id] || id; }
   function datePrior(due, hasTime) {
-    const w = { work: 0, home: 0, misc: 0 };
+    const w = blank();
     const d = due != null ? new Date(due) : (hasTime ? new Date() : null);
     if (!d) { w.misc += 0.12; return w; }
     const day = d.getDay();
@@ -402,25 +412,26 @@ const Classify = (() => {
     return w;
   }
   function lexical(tokens, learned) {
-    const w = { work: 0, home: 0, misc: 0 };
+    const w = blank();
     for (const id of IDS) {
       const set = SETS[id];
       const learnedSet = new Set(Vocabulary.tokenize(((learned && learned[id]) || []).join(' ')));
+      const labelSet = new Set(tokenize(LABELS[id] || ''));
       for (const t of tokens) {
         if (set.has(t)) w[id] += 1.15;
         if (learnedSet.has(t)) w[id] += 1.4;
+        if (labelSet.has(t)) w[id] += 0.95;
       }
     }
     return w;
   }
-  // Rank all three (catalogue < 5, so nothing is dropped from the "grammar").
-  // confidence/margin mirror Needle's gate: act (emphasize) above, escalate (show
-  // even matches) below. The return value is a suggestion list, never a write.
+  // Rank every folder. confidence/margin mirror Needle's gate: act (emphasize)
+  // above, escalate (show even matches) below. Suggestion list, never a write.
   function suggest(title, tags, due, hasTime, learned, extra) {
     const tokens = [...new Set(tokenize(title).concat(tokenize(extra || '')))];
     const prior = datePrior(due, hasTime);
     const lex = lexical(tokens, learned);
-    const tagHit = IDS.find(id => (tags || []).includes(id)) || null;
+    const tagHit = boxFromTags(tags);
     const scores = {};
     for (const id of IDS) scores[id] = lex[id] + prior[id] + (tagHit === id ? 5 : 0);
     const ranked = IDS.map(id => ({ id, score: scores[id] })).sort((a, b) => b.score - a.score);
@@ -433,9 +444,36 @@ const Classify = (() => {
     return { ranked, top: evidenced && top.score > 0 ? top.id : null, confidence, margin, tagHit };
   }
   function boxFromTags(tags) {
-    return IDS.find(id => (tags || []).includes(id)) || null;
+    for (const raw of tags || []) {
+      const s = slug(raw);
+      if (!s) continue;
+      const byId = IDS.find(id => id === s);
+      if (byId) return byId;
+      const byLabel = IDS.find(id => slug(LABELS[id]) === s);
+      if (byLabel) return byLabel;
+      const byDefault = IDS.find(id => slug(DEFAULTS[id]) === s);
+      if (byDefault) return byDefault;
+    }
+    return null;
   }
-  return { IDS, LABELS, tokenize, suggest, boxFromTags };
+  function setLabel(id, name) {
+    if (!IDS.includes(id)) return { ok: false, reason: 'unknown' };
+    const next = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 18);
+    const value = next || DEFAULTS[id];
+    const key = slug(value);
+    if (!key) return { ok: false, reason: 'empty' };
+    const clash = IDS.find(other => other !== id && slug(LABELS[other]) === key);
+    if (clash) return { ok: false, reason: 'duplicate' };
+    LABELS[id] = value;
+    return { ok: true, label: value };
+  }
+  function applyLabels(map) {
+    if (!map || typeof map !== 'object') return;
+    IDS.forEach(id => {
+      if (typeof map[id] === 'string') setLabel(id, map[id]);
+    });
+  }
+  return { IDS, LABELS, DEFAULTS, tokenize, suggest, boxFromTags, setLabel, applyLabels, labelOf, slug };
 })();
 
 /* ============================================================
@@ -474,7 +512,8 @@ let listCollapsed = false; // closing a folder hides rows; it does not show all
 let pendingCat = null;    // box the user picked in the add hint
 let catPickId = null;     // task id showing the 3-box picker
 let suppressCatClickUntil = 0;
-let catLearned = { work: [], home: [], misc: [] };
+let catLearned = { work: [], home: [], misc: [], groceries: [], errands: [] };
+let renamingCat = null;
 let editingId = null;
 let hideDone = false;
 
@@ -487,6 +526,8 @@ const ICON = {
   work: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="2.7"/><path d="M12 3v1.1M17.4 7.5h1.1M5.5 7.5h1.1M16.2 3.7l.7-.7M7.1 3.7l-.7-.7"/><path d="M4 14.5h16"/><path d="M6 14.5V19M10 14.5v3.2M14 14.5v3.2M18 14.5V19"/><path d="M4 19h16"/></svg>',
   home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 13 12 5.5 20.5 13"/><path d="M5.8 13 12 7.8 18.2 13"/><path d="M7.5 13v6.5M16.5 13v6.5"/><path d="M5 19.5h14"/><path d="M12 5.5v2"/></svg>',
   misc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 16.5c-3.8.2-6.7-2.4-6.7-5.6 0-3.4 2.7-5.6 5.6-5.2 2.2.3 3.7 2.2 3.7 4.4 0 1.9-1.3 3.4-3 3.4-1.3 0-2.3-.9-2.3-2.1 0-.9.6-1.6 1.5-1.6"/><path d="M15.8 14.8c1.6 1.2 3.4 1.6 4.6.6"/><path d="M8.2 17.2c-1.3.9-3 .7-3.8-.6"/><path d="M9.2 8.2c-.8-1.2-1-2.6-.2-3.4"/></svg>',
+  groceries: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5.6 8.5h12.8l-1.15 10.1a1.6 1.6 0 0 1-1.58 1.4H8.33a1.6 1.6 0 0 1-1.58-1.4L5.6 8.5Z"/><path d="M9.2 8.5V6.7a2.8 2.8 0 0 1 5.6 0v1.8"/><path d="M8.2 13.2h7.6"/></svg>',
+  errands: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="6.4" cy="16.6" r="2.7"/><circle cx="17.6" cy="16.6" r="2.7"/><path d="M6.4 16.6 10.6 8.8h4.2L17.6 16.6"/><path d="M10.6 8.8 8.2 16.6"/><path d="M12.4 12.4h5"/></svg>',
   file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h16v11H4z"/><path d="M8 8V5.5h8V8"/><path d="M4 13h16"/></svg>',
   repeat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1v4h-4"/><path d="M7 23v-4h4"/><path d="M20 7a8 8 0 0 0-14.9 3"/><path d="M4 17a8 8 0 0 0 14.9-3"/></svg>',
   pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2 14.4 10H21l-5.5 4 2.1 6.8L12 16.7 6.4 20.8 8.5 14 3 10h6.6Z"/></svg>',
@@ -531,11 +572,11 @@ function matches(t) {
   if (catFilter && t.category !== catFilter) return false;
   if (tagFilter && !t.tags.includes(tagFilter)) return false;
   if (!query) return true;
-  const hay = t.title + ' ' + t.tags.map(x => '#' + x).join(' ') + ' ' + (t.notes || '') + ' ' + (t.category ? Classify.LABELS[t.category] : '') + ' ' + Dates.repeatLabel(t.repeat);
+  const hay = t.title + ' ' + t.tags.map(x => '#' + x).join(' ') + ' ' + (t.notes || '') + ' ' + (t.category ? Classify.labelOf(t.category) : '') + ' ' + Dates.repeatLabel(t.repeat);
   return fuzzy(query, hay) > -1 || Vocabulary.matches(query, hay) || dateMatch(query, t);
 }
 function searchScore(t) {
-  const hay = t.title + ' ' + t.tags.map(x => '#' + x).join(' ') + ' ' + (t.category ? Classify.LABELS[t.category] : '');
+  const hay = t.title + ' ' + t.tags.map(x => '#' + x).join(' ') + ' ' + (t.category ? Classify.labelOf(t.category) : '');
   const textScore = fuzzy(query, hay);
   // Date hits rank just under strong text hits but clearly above weak ones.
   const dateScore = dateMatch(query, t) ? 30 : -1;
@@ -546,7 +587,7 @@ function render() {
   const list = $('#list');
   list.innerHTML = '';
   list.hidden = listCollapsed;
-  list.setAttribute('aria-label', catFilter ? Classify.LABELS[catFilter] : 'Tasks');
+  list.setAttribute('aria-label', catFilter ? Classify.labelOf(catFilter) : 'Tasks');
   view = [];
 
   let pool = tasks.filter(matches);
@@ -626,17 +667,67 @@ function syncHideDone() {
 function syncCatStrip() {
   Classify.IDS.forEach(id => {
     const n = tasks.filter(t => t.category === id).length;
-    const label = Classify.LABELS[id];
-    const countEl = document.getElementById('catN' + label);
-    const btn = document.getElementById('catBtn' + label);
+    const label = Classify.labelOf(id);
+    const btn = document.querySelector(`.cat-btn[data-cat="${id}"]`);
+    if (!btn) return;
+    const countEl = btn.querySelector('.cat-n');
+    const nameEl = btn.querySelector('.cat-name');
     if (countEl) countEl.textContent = String(n);
-    if (btn) {
-      const open = catFilter === id;
-      btn.setAttribute('aria-expanded', String(open));
-      btn.setAttribute('aria-label', `${label}, ${n} task${n !== 1 ? 's' : ''}, ${open ? 'open, tap to close' : 'closed, tap to open'}`);
-      btn.title = open ? `Close ${label} — hide contents` : `Open ${label}`;
-    }
+    if (nameEl && renamingCat !== id) nameEl.textContent = label;
+    const open = catFilter === id;
+    btn.setAttribute('aria-expanded', String(open));
+    btn.setAttribute('aria-label', `${label}, ${n} task${n !== 1 ? 's' : ''}, ${open ? 'open, tap to close' : 'closed, tap to open'}`);
+    btn.title = open ? `Close ${label} — hide contents` : `Open ${label}`;
+    const chip = document.querySelector(`.cat-rename[data-cat="${id}"]`);
+    if (chip) chip.setAttribute('aria-label', 'Rename ' + label);
   });
+  const strip = $('#catStrip');
+  if (strip) strip.setAttribute('aria-label', Classify.IDS.map(id => Classify.labelOf(id)).join(', '));
+}
+function startRename(id) {
+  if (!Classify.IDS.includes(id)) return;
+  if (renamingCat && renamingCat !== id) finishRename(true);
+  const btn = document.querySelector(`.cat-btn[data-cat="${id}"]`);
+  const nameEl = btn && btn.querySelector('.cat-name');
+  if (!nameEl) return;
+  renamingCat = id;
+  suppressCatClickUntil = Date.now() + 900;
+  nameEl.contentEditable = 'true';
+  nameEl.spellcheck = false;
+  nameEl.dataset.prev = Classify.labelOf(id);
+  nameEl.focus();
+  const range = document.createRange();
+  range.selectNodeContents(nameEl);
+  const s = window.getSelection();
+  s.removeAllRanges(); s.addRange(range);
+  nameEl.onkeydown = e => {
+    if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finishRename(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finishRename(false); }
+  };
+  nameEl.onblur = () => { if (renamingCat === id) finishRename(true); };
+}
+function finishRename(commit) {
+  const id = renamingCat; if (!id) return;
+  const btn = document.querySelector(`.cat-btn[data-cat="${id}"]`);
+  const nameEl = btn && btn.querySelector('.cat-name');
+  renamingCat = null;
+  if (!nameEl) return;
+  nameEl.contentEditable = 'false';
+  nameEl.onkeydown = null;
+  nameEl.onblur = null;
+  const prev = nameEl.dataset.prev || Classify.labelOf(id);
+  delete nameEl.dataset.prev;
+  if (!commit) { nameEl.textContent = prev; return; }
+  const result = Classify.setLabel(id, nameEl.textContent);
+  if (!result.ok) {
+    nameEl.textContent = prev;
+    toast(result.reason === 'duplicate' ? 'That name is already a folder' : 'Keep a short name');
+    return;
+  }
+  nameEl.textContent = result.label;
+  STORE.setMeta('catLabels', { ...Classify.LABELS }).catch(() => {});
+  render();
+  updateHint($('#add') ? $('#add').value : '');
 }
 
 function bucketHead(label, count) {
@@ -753,8 +844,8 @@ function catControls(t) {
       const b = el('button', 'cat-pick-row' + (t.category === id ? ' on' : '') + (s.top === id && t.category !== id ? ' best' : ''));
       b.type = 'button';
       b.innerHTML = ICON[id];
-      b.title = Classify.LABELS[id];
-      b.setAttribute('aria-label', (t.category === id ? 'Remove from ' : 'File in ') + Classify.LABELS[id]);
+      b.title = Classify.labelOf(id);
+      b.setAttribute('aria-label', (t.category === id ? 'Remove from ' : 'File in ') + Classify.labelOf(id));
       b.onclick = ev => { ev.stopPropagation(); fileTask(t.id, t.category === id ? null : id); };
       wrap.appendChild(b);
     });
@@ -766,8 +857,8 @@ function catControls(t) {
   const shown = t.category || (s && s.top) || 'file';
   b.innerHTML = ICON[shown];
   b.title = t.category
-    ? Classify.LABELS[t.category] + ' — change box'
-    : (s && s.top ? 'Suggested ' + Classify.LABELS[s.top] + '. Choose a box' : 'Choose a box');
+    ? Classify.labelOf(t.category) + ' — change box'
+    : (s && s.top ? 'Suggested ' + Classify.labelOf(s.top) + '. Choose a box' : 'Choose a box');
   b.setAttribute('aria-label', b.title);
   b.onclick = ev => { ev.stopPropagation(); catPickId = t.id; render(); };
   wrap.appendChild(b);
@@ -781,7 +872,7 @@ function emptyState() {
   } else if (tagFilter) {
     e.innerHTML = `<div class="ring">${ICON.leaf}</div><h3>Nothing tagged #${esc(tagFilter)}</h3><p>Clear the filter to see everything.</p>`;
   } else if (catFilter) {
-    e.innerHTML = `<div class="ring">${ICON[catFilter]}</div><h3>Nothing in ${esc(Classify.LABELS[catFilter])}</h3><p>Wording only suggests a box. File a task here when you choose.</p>`;
+    e.innerHTML = `<div class="ring">${ICON[catFilter]}</div><h3>Nothing in ${esc(Classify.labelOf(catFilter))}</h3><p>Wording only suggests a box. File a task here when you choose.</p>`;
   } else {
     e.innerHTML = `<div class="ring">${ICON.leaf}</div><h3>A clear mind</h3><p>No tasks yet.</p><p><button type="button" class="nudge-link" id="emptyFocusAdd">Add your first task</button></p>`;
   }
@@ -942,7 +1033,7 @@ async function fileTask(id, cat) {
   catPickId = null;
   if (cat) rememberChoice(t.title, cat);
   await STORE.put(t); render(); afterChange();
-  if (cat) toast('Filed in ' + Classify.LABELS[cat]);
+  if (cat) toast('Filed in ' + Classify.labelOf(cat));
 }
 
 /* Pointer drag — pick up a task and drop it on Work / Home / Misc.
@@ -1098,7 +1189,7 @@ const Backup = (() => {
   let supported = 'showDirectoryPicker' in window;
 
   function snapshot() {
-    return { app: 'quiet', version: 2, exportedAt: new Date().toISOString(), count: tasks.length, tasks };
+    return { app: 'quiet', version: 3, exportedAt: new Date().toISOString(), count: tasks.length, folders: { ...Classify.LABELS }, tasks };
   }
   function taskStamp(t) {
     return +t.updatedAt || +t.completedAt || +t.created || 0;
@@ -1147,6 +1238,10 @@ const Backup = (() => {
         else {
           const m = mergeById(tasks, norm);
           tasks = m.tasks; added = m.added; updated = m.updated; kept = m.kept;
+        }
+        if (data && data.folders) {
+          Classify.applyLabels(data.folders);
+          await STORE.setMeta('catLabels', { ...Classify.LABELS });
         }
         await STORE.putMany(tasks);
         cb(null, { n: norm.length, added, updated, kept });
@@ -1260,7 +1355,7 @@ function updateHint(raw) {
   const picks = Classify.IDS.map(id => {
     const on = selected === id;
     const best = !selected && s.top === id;
-    return `<button type="button" class="cat-pick${on ? ' on' : ''}${best ? ' best' : ''}" data-pending-cat="${id}">${Classify.LABELS[id]}</button>`;
+    return `<button type="button" class="cat-pick${on ? ' on' : ''}${best ? ' best' : ''}" data-pending-cat="${id}">${esc(Classify.labelOf(id))}</button>`;
   }).join('');
   const lead = selected ? 'file in' : (s.top ? 'suggested' : 'box');
   bits.push(`${lead} <span class="cat-picks-hint">${picks}</span>`);
@@ -1323,6 +1418,7 @@ document.addEventListener('keydown', e => {
   // global escape
   if (e.key === 'Escape') {
     if (document.querySelector('.sheet.on')) { closeSheets(); return; }
+    if (renamingCat) { finishRename(false); return; }
     if (editingId) { editingId = null; render(); return; }
     if (catPickId) { catPickId = null; render(); return; }
     if (query || tagFilter || catFilter || listCollapsed) { query=''; tagFilter=null; catFilter=null; listCollapsed=false; $('#search').value=''; render(); $('#search').blur(); return; }
@@ -1380,6 +1476,7 @@ function wire() {
   });
 
   $('#catStrip').addEventListener('click', e => {
+    if (renamingCat) { e.preventDefault(); e.stopPropagation(); return; }
     const suppress = e.detail !== 0 && Date.now() < suppressCatClickUntil;
     suppressCatClickUntil = 0;
     if (suppress) { e.preventDefault(); e.stopPropagation(); return; }
@@ -1395,6 +1492,12 @@ function wire() {
     if (!catPickId) return;
     if (e.target.closest('.cat-picks, .cat-strip, .hint')) return;
     catPickId = null; render();
+  });
+
+  $('#catStrip').addEventListener('click', e => {
+    const chip = e.target.closest('.cat-rename'); if (!chip) return;
+    e.preventDefault(); e.stopPropagation();
+    startRename(chip.dataset.cat);
   });
 
   let st;
@@ -1497,12 +1600,12 @@ async function boot() {
   try {
     const L = await STORE.getMeta('catLearned');
     if (L && typeof L === 'object') {
-      catLearned = {
-        work: Array.isArray(L.work) ? L.work : [],
-        home: Array.isArray(L.home) ? L.home : [],
-        misc: Array.isArray(L.misc) ? L.misc : [],
-      };
+      catLearned = Object.fromEntries(Classify.IDS.map(id => [id, Array.isArray(L[id]) ? L[id] : []]));
     }
+  } catch (e) {}
+  try {
+    const saved = await STORE.getMeta('catLabels');
+    if (saved) Classify.applyLabels(saved);
   } catch (e) {}
   try { hideDone = (await STORE.getMeta('hideDone')) === true; } catch (e) {}
   await Backup.restoreHandle();
