@@ -67,4 +67,15 @@ check(Classify.labelOf('work')==='Studio','clash leaves Studio');
 reset();
 check(Classify.labelOf('work')==='Work' && Classify.labelOf('groceries')==='Groceries','reset restores defaults');
 
+const html=readFileSync('index.html','utf8');
+const app=readFileSync('app.js','utf8');
+check(!/@media \(hover: none\)[\s\S]{0,80}\.cat-rename \{ opacity: 1/.test(html),'touch does not force folder pencils');
+check(!/@media \(hover: none\)[\s\S]{0,80}\.row-actions \{ opacity: 1/.test(html),'touch does not force row edit icons');
+check(/@media \(hover: hover\) and \(pointer: fine\)/.test(html),'hover reveal requires a fine pointer');
+check(!/\.cat-cell:focus-within \.cat-rename/.test(html),'folder tap focus does not pin a pencil');
+check(/pointerType !== 'touch'/.test(app) && /startRename\(id\)/.test(app),'press-and-hold on touch starts rename');
+check(/contextmenu/.test(app),'long-press does not open the iOS callout');
+check(/repeat\(6, minmax\(0, 1fr\)\)/.test(html),'phones use a 6-track folder grid');
+check(/cat-cell:nth-child\(4\) \{ grid-column: 2 \/ 4/.test(html),'second folder row is centered');
+
 console.log(`${n} rename pipeline checks passed`);

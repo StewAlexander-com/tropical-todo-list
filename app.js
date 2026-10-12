@@ -1500,6 +1500,36 @@ function wire() {
     startRename(chip.dataset.cat);
   });
 
+  // Phones have no hover, so pencils stay hidden. Press-and-hold a folder to rename.
+  {
+    let holdTimer = 0;
+    const strip = $('#catStrip');
+    const clearHold = () => { clearTimeout(holdTimer); holdTimer = 0; };
+    strip.addEventListener('pointerdown', e => {
+      if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+      if (e.target.closest('.cat-rename')) return;
+      const btn = e.target.closest('.cat-cell') && e.target.closest('.cat-cell').querySelector('.cat-btn');
+      if (!btn) return;
+      const id = btn.dataset.cat;
+      const x0 = e.clientX, y0 = e.clientY;
+      holdTimer = setTimeout(() => { holdTimer = 0; startRename(id); }, 520);
+      const move = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 10) clearHold(); };
+      const up = () => {
+        clearHold();
+        strip.removeEventListener('pointermove', move);
+        strip.removeEventListener('pointerup', up);
+        strip.removeEventListener('pointercancel', up);
+      };
+      strip.addEventListener('pointermove', move);
+      strip.addEventListener('pointerup', up);
+      strip.addEventListener('pointercancel', up);
+    });
+    strip.addEventListener('contextmenu', e => {
+      if (!e.target.closest('.cat-cell')) return;
+      e.preventDefault();
+    });
+  }
+
   let st;
   search.addEventListener('input', () => {
     listCollapsed = false;
