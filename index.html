@@ -427,6 +427,15 @@ body.is-dragging .cat-btn.drop-over .cat-label {
 .task-note-edit:focus { border-color: var(--accent); }
 body.scene-on .task-note { color: rgba(226,232,240,.7); }
 body.scene-on .task-note-edit { color: #e8e9ec; background: rgba(16,22,32,.55); border-color: rgba(255,255,255,.14); }
+.task-pin-edit {
+  appearance: none; border: 0; background: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 7px;
+  font: inherit; font-size: 12px; color: var(--text-faint); padding: 0;
+}
+.task-pin-edit svg { width: 12px; height: 12px; }
+.task-pin-edit[aria-pressed="true"] { color: var(--accent); }
+body.scene-on .task-pin-edit { color: rgba(226,232,240,.62); }
+body.scene-on .task-pin-edit[aria-pressed="true"] { color: #7fb7be; }
 
 /* ---- Empty / filter chips ---- */
 .empty { text-align: center; padding: 70px 20px; color: var(--text-faint); }
@@ -898,6 +907,7 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
       <div>Move up <span class="kbd">k</span></div>
       <div>Complete <span class="kbd">x</span></div>
       <div>Snooze +1 day <span class="kbd">s</span></div>
+      <div>Pin to Today <span class="kbd">p</span></div>
       <div>Edit <span class="kbd">e</span></div>
       <div>Delete <span class="kbd">⌫</span></div>
       <div>Clear / close <span class="kbd">esc</span></div>
@@ -941,7 +951,7 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
 <div class="toast" id="toast" role="status"><span id="toastTxt"></span></div>
 
 <noscript><div style="max-width:560px;margin:60px auto;padding:0 24px;font-family:system-ui;color:#5d6168;text-align:center"><h1 style="color:#1a1c20">Tropical ToDos</h1><p>A calm, local-first to-do list that runs entirely in your browser. Please enable JavaScript to use it. Nothing is ever sent to a server.</p></div></noscript>
-<script src="app.js?v=1.3.5"></script>
+<script src="app.js?v=1.3.6"></script>
 <script src="soundscape.js?v=1.2.6"></script>
 <script src="ambient.js?v=1.3.2"></script>
 </body>

@@ -489,6 +489,7 @@ const ICON = {
   misc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 16.5c-3.8.2-6.7-2.4-6.7-5.6 0-3.4 2.7-5.6 5.6-5.2 2.2.3 3.7 2.2 3.7 4.4 0 1.9-1.3 3.4-3 3.4-1.3 0-2.3-.9-2.3-2.1 0-.9.6-1.6 1.5-1.6"/><path d="M15.8 14.8c1.6 1.2 3.4 1.6 4.6.6"/><path d="M8.2 17.2c-1.3.9-3 .7-3.8-.6"/><path d="M9.2 8.2c-.8-1.2-1-2.6-.2-3.4"/></svg>',
   file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h16v11H4z"/><path d="M8 8V5.5h8V8"/><path d="M4 13h16"/></svg>',
   repeat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1v4h-4"/><path d="M7 23v-4h4"/><path d="M20 7a8 8 0 0 0-14.9 3"/><path d="M4 17a8 8 0 0 0 14.9-3"/></svg>',
+  pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2 14.4 10H21l-5.5 4 2.1 6.8L12 16.7 6.4 20.8 8.5 14 3 10h6.6Z"/></svg>',
 };
 
 function esc(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -594,9 +595,13 @@ function render() {
   } else {
     // bucket mode
     const groups = {}; BUCKETS.forEach(b => groups[b.id] = []);
-    pool.forEach(t => groups[Dates.bucketOf(t.due)].push(t));
+    pool.forEach(t => {
+      let b = Dates.bucketOf(t.due);
+      if (t.pinned && !t.done && b !== 'overdue') b = 'today';
+      groups[b].push(t);
+    });
     // within a bucket: incomplete first, then by due asc, then created desc
-    const cmp = (a,b) => (a.done-b.done) || ((a.due??Infinity)-(b.due??Infinity)) || (b.created-a.created);
+    const cmp = (a,b) => ((b.pinned&&!b.done)-(a.pinned&&!a.done)) || (a.done-b.done) || ((a.due??Infinity)-(b.due??Infinity)) || (b.created-a.created);
     BUCKETS.forEach(b => {
       const items = groups[b.id].sort(cmp);
       if (!items.length) return;
@@ -659,7 +664,19 @@ function taskRow(t) {
     note.value = t.notes || '';
     note.placeholder = 'Note, if you need one';
     note.setAttribute('aria-label', 'Task note');
+    const pinBtn = el('button', 'task-pin-edit');
+    pinBtn.type = 'button';
+    pinBtn.innerHTML = ICON.pin + '<span></span>';
+    const syncPin = () => {
+      pinBtn.querySelector('span').textContent = t.pinned ? 'Unpin from Today' : 'Pin to Today';
+      pinBtn.setAttribute('aria-pressed', t.pinned ? 'true' : 'false');
+    };
+    syncPin();
     const save = () => { if (editingId === t.id) commitEdit(t.id, inp.value, note.value); };
+    const staying = e => {
+      const r = e.relatedTarget;
+      return r === note || r === inp || r === pinBtn || (r && pinBtn.contains(r));
+    };
     inp.onkeydown = e => {
       if (e.key === 'Enter') { e.preventDefault(); save(); }
       else if (e.key === 'Escape') { editingId = null; render(); }
@@ -667,9 +684,16 @@ function taskRow(t) {
     note.onkeydown = e => {
       if (e.key === 'Escape') { editingId = null; render(); }
     };
-    inp.onblur = e => { if (e.relatedTarget !== note) save(); };
-    note.onblur = e => { if (e.relatedTarget !== inp) save(); };
-    body.append(inp, note);
+    inp.onblur = e => { if (!staying(e)) save(); };
+    note.onblur = e => { if (!staying(e)) save(); };
+    pinBtn.onclick = ev => {
+      ev.preventDefault();
+      t.pinned = !t.pinned;
+      t.updatedAt = Date.now();
+      syncPin();
+      STORE.put(t).then(() => afterChange());
+    };
+    body.append(inp, note, pinBtn);
     row.appendChild(body);
     requestAnimationFrame(() => { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); });
     return row;
@@ -691,6 +715,10 @@ function taskRow(t) {
   if (t.repeat) {
     const rpt = el('span', 'due repeat', ICON.repeat + `<span>${esc(Dates.repeatLabel(t.repeat))}</span>`);
     meta.appendChild(rpt);
+  }
+  if (t.pinned) {
+    const pin = el('span', 'due pin', ICON.pin + '<span>pinned</span>');
+    meta.appendChild(pin);
   }
   t.tags.forEach(tag => {
     const chip = el('span', 'tag', '#' + esc(tag));
@@ -806,7 +834,7 @@ async function addFromInput(raw) {
   }
   const p = Parse.parse(raw);
   const category = boxForParsed(p, raw, pendingCat);
-  const t = { id: uid(), title: cleanTitle(p), raw, tags: p.tags, due: p.due, hasTime: p.hasTime, done: false, created: Date.now(), updatedAt: Date.now(), category: category || null, repeat: Dates.normalizeRepeat(p.repeat), notes: '' };
+  const t = { id: uid(), title: cleanTitle(p), raw, tags: p.tags, due: p.due, hasTime: p.hasTime, done: false, created: Date.now(), updatedAt: Date.now(), category: category || null, repeat: Dates.normalizeRepeat(p.repeat), notes: '', pinned: false };
   if (category) rememberChoice(t.title, category);
   pendingCat = null;
   tasks.push(t);
@@ -852,6 +880,20 @@ async function toggle(id) {
   t.updatedAt = Date.now();
   await STORE.put(t); render(); afterChange();
   if (t.done) maybeCelebrate();
+}
+async function pin(id) {
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  const prev = !!t.pinned;
+  t.pinned = !prev;
+  t.updatedAt = Date.now();
+  await STORE.put(t); render(); afterChange();
+  const i = view.indexOf(id); if (i >= 0) sel = i;
+  paintSel();
+  toast(t.pinned ? 'Pinned to Today' : 'Unpinned', 'Undo', async () => {
+    const cur = tasks.find(x => x.id === id); if (!cur) return;
+    cur.pinned = prev; cur.updatedAt = Date.now();
+    await STORE.put(cur); render(); afterChange();
+  });
 }
 async function snooze(id) {
   const t = tasks.find(x => x.id === id); if (!t) return;
@@ -1097,6 +1139,7 @@ const Backup = (() => {
           category: Classify.IDS.includes(t.category) ? t.category : null,
           repeat: Dates.normalizeRepeat(t.repeat),
           notes: typeof t.notes === 'string' ? t.notes : '',
+          pinned: !!t.pinned,
           updatedAt: t.updatedAt || t.created || Date.now(),
         }));
         let added = 0, updated = 0, kept = 0;
@@ -1299,6 +1342,7 @@ document.addEventListener('keydown', e => {
     case 'k': e.preventDefault(); if (view.length){ sel = Math.max(0, sel-1); paintSel(); } break;
     case 'x': case ' ': if (sel>=0){ e.preventDefault(); toggle(view[sel]); } break;
     case 's': if (sel>=0){ e.preventDefault(); snooze(view[sel]); } break;
+    case 'p': if (sel>=0){ e.preventDefault(); pin(view[sel]); } break;
     case 'e': if (sel>=0){ e.preventDefault(); startEdit(view[sel]); } break;
     case 'Backspace': case 'Delete': if (sel>=0){ e.preventDefault(); removeTask(view[sel]); } break;
     case '?': e.preventDefault(); openSheet('helpSheet'); break;
