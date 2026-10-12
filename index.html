@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#2aa7b8" media="(prefers-color-scheme: light)" />
 
 <!-- Primary SEO -->
-<title>Tropical ToDos — a calm, local-first to-do list</title>
+<title>Troplist — a calm, local-first to-do list</title>
 <meta name="description" content="Tropical ToDos is a calm, private to-do list with a cinematic beach backdrop and gentle ocean waves. Natural-language tasks, fuzzy search, offline-first PWA. Your tasks never leave your device." />
 <meta name="keywords" content="todo list, to-do app, tasks, productivity, PWA, offline, private, local-first, beach, calm, tropical" />
 <meta name="author" content="StewAlexander.com" />
@@ -49,7 +49,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-v1.3.0-180.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650&family=Geist+Mono:wght@400;500&family=Oswald:wght@300;400;500;600&family=Pinyon+Script&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650&family=Geist+Mono:wght@400;500&family=Oswald:wght@300;400;500;600&family=Permanent+Marker&family=Yellowtail&display=swap" rel="stylesheet" />
 <style>
 :root {
   --bg: #fbfbfa;
@@ -70,7 +70,8 @@
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --mono: 'Geist Mono', ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
   --display: 'Oswald', 'Inter', sans-serif;
-  --script: 'Pinyon Script', 'Snell Roundhand', cursive;
+  --script: 'Permanent Marker', 'Marker Felt', 'Comic Sans MS', cursive;
+  --mark: 'Yellowtail', 'Snell Roundhand', 'Brush Script MT', cursive;
   /* Warm gold accent for masthead flourishes ONLY (interactive stays teal). */
   --gold: #a87f2e;
   --gold-soft: #cba35a;
@@ -160,20 +161,27 @@ body.scene-on header:focus-within {
 .eyebrow {
   display: flex; align-items: center; justify-content: center; gap: 12px;
   font-size: 10.5px; font-weight: 600; letter-spacing: .34em; text-transform: uppercase;
-  color: var(--gold); margin-bottom: 12px; padding-left: .34em; white-space: nowrap;
+  color: var(--gold); margin-bottom: 4px; padding-left: .34em; white-space: nowrap;
 }
 .eyebrow .rule { height: 1px; width: clamp(24px, 14%, 70px); background: linear-gradient(90deg, transparent, var(--gold-soft)); opacity: .8; }
 .eyebrow .rule:last-child { background: linear-gradient(90deg, var(--gold-soft), transparent); }
 .poster-title {
-  font-family: var(--display); font-weight: 500; text-transform: uppercase;
-  font-size: clamp(28px, 8.5vw, 58px); line-height: .96; letter-spacing: .015em;
-  color: var(--text); margin: 0; position: relative; white-space: nowrap;
+  font-family: var(--mark); font-weight: 400; font-style: normal;
+  font-size: clamp(48px, 15vw, 76px); line-height: .92; letter-spacing: 0;
+  text-transform: none; color: var(--text); margin: 0; padding: 2px 4px 0;
+  position: relative; white-space: nowrap; overflow: visible;
   text-shadow: 0 1px 0 color-mix(in srgb, var(--bg) 60%, transparent), 0 2px 18px color-mix(in srgb, var(--bg) 80%, transparent);
 }
-.poster-title .dot { font-family: var(--font); font-size: 11px; font-weight: 500; color: var(--text-faint); letter-spacing: 0; text-transform: none; vertical-align: super; margin-left: 6px; text-shadow: none; }
-.tagline { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 8px; color: var(--gold); }
-.tagline .dash { font-size: 14px; opacity: .65; }
-.tagline .script { font-family: var(--script); font-size: clamp(19px, 5vw, 25px); line-height: 1.1; color: var(--gold); white-space: nowrap; }
+.poster-title .tld {
+  font-size: .72em; opacity: .84; margin-left: .02em;
+}
+.tagline { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 13px; color: var(--gold); }
+.tagline .dash { font-size: 12px; opacity: .55; }
+.tagline .script {
+  font-family: var(--script); font-weight: 400;
+  font-size: clamp(13px, 3.2vw, 16px); line-height: 1.2; letter-spacing: .04em;
+  color: var(--gold); white-space: nowrap; opacity: .82;
+}
 
 /* Mobile: full-width poster. Controls already sit above it in flow. */
 @media (max-width: 560px) {
@@ -193,7 +201,7 @@ body.scrolled header { padding: calc(8px + env(safe-area-inset-top)) 0 8px; }
 body.scrolled .poster { padding: 0 8px; }
 body.scrolled .controls { margin-bottom: 6px; }
 body.scrolled .eyebrow, body.scrolled .tagline { opacity: 0; max-height: 0; margin: 0; overflow: hidden; pointer-events: none; }
-body.scrolled .poster-title { font-size: clamp(18px, 5vw, 22px); letter-spacing: .04em; }
+body.scrolled .poster-title { font-size: clamp(28px, 8vw, 34px); letter-spacing: 0; line-height: 1.15; }
 .eyebrow, .tagline { transition: opacity .25s ease, max-height .3s ease, margin .3s ease; max-height: 40px; }
 .poster-title { transition: font-size .3s ease, letter-spacing .3s ease; }
 
@@ -659,7 +667,7 @@ body.scene-on .poster {
   padding: 14px 20px 12px; margin: 4px 0 2px;
 }
 body.scene-on.scrolled .poster { padding: 8px 16px; margin: 0 0 2px; }
-body.scene-on .poster .poster-title { color: #f4f5f7; text-shadow: 0 2px 14px rgba(0,0,0,.4); }
+body.scene-on .poster .poster-title { color: #f6edd8; text-shadow: 0 2px 16px rgba(0,0,0,.45); }
 body.scene-on .poster .eyebrow, body.scene-on .poster .tagline .script, body.scene-on .poster .tagline { color: var(--gold-soft); }
 body.scene-on .add {
   background: linear-gradient(180deg, rgba(22,29,41,.9), rgba(14,19,28,.94));
@@ -865,7 +873,7 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
     <!-- Poster masthead -->
     <div class="poster">
       <div class="eyebrow"><span class="rule"></span>Welcome To<span class="rule"></span></div>
-      <h1 class="poster-title">Tropical&nbsp;ToDos</h1>
+      <h1 class="poster-title" aria-label="Troplist.com">Troplist<span class="tld" aria-hidden="true">.com</span></h1>
       <span class="dot sr" id="hdrCount"></span>
       <div class="tagline"><span class="dash">&mdash;</span><span class="script">a calm list for unhurried days</span><span class="dash">&mdash;</span></div>
     </div>
