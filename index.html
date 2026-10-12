@@ -49,7 +49,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-v1.3.0-180.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650&family=Geist+Mono:wght@400;500&family=Oswald:wght@300;400;500;600&family=Permanent+Marker&family=Yellowtail&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650&family=Geist+Mono:wght@400;500&family=Oswald:wght@300;400;500;600&family=Pacifico&family=Permanent+Marker&family=Yellowtail&display=swap" rel="stylesheet" />
 <style>
 :root {
   --bg: #fbfbfa;
@@ -72,6 +72,7 @@
   --display: 'Oswald', 'Inter', sans-serif;
   --script: 'Permanent Marker', 'Marker Felt', 'Comic Sans MS', cursive;
   --mark: 'Yellowtail', 'Snell Roundhand', 'Brush Script MT', cursive;
+  --hand: 'Pacifico', 'Snell Roundhand', 'Apple Chancery', cursive;
   /* Warm gold accent for masthead flourishes ONLY (interactive stays teal). */
   --gold: #a87f2e;
   --gold-soft: #cba35a;
@@ -507,17 +508,39 @@ body.scene-on .task-pin-edit[aria-pressed="true"] { color: #7fb7be; }
 /* ---- Footer status ---- */
 .statusbar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 15;
+  display: flex; flex-direction: column; align-items: stretch;
   background: color-mix(in srgb, var(--bg) 90%, transparent);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   border-top: 1px solid var(--line-soft);
-  padding: 9px max(20px, env(safe-area-inset-left)) calc(9px + env(safe-area-inset-bottom));
+  padding: 8px max(20px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-right));
 }
-.statusbar .inner { max-width: var(--maxw); margin: 0 auto; display: flex; align-items: center; gap: 14px; font-size: 11.5px; color: var(--text-2); }
+.statusbar .inner { max-width: var(--maxw); margin: 0 auto; width: 100%; display: flex; align-items: center; gap: 14px; font-size: 11.5px; color: var(--text-2); }
 .statusbar .stat { display: inline-flex; align-items: center; gap: 5px; }
 .statusbar .stat svg { width: 13px; height: 13px; color: var(--text-faint); }
 .statusbar .spacer { flex: 1; }
 .statusbar a, .statusbar .lnk { color: var(--text-2); cursor: pointer; text-decoration: none; transition: color .12s ease; }
 .statusbar .lnk:hover { color: var(--accent); }
+.credit {
+  font-family: var(--hand); font-weight: 400;
+  font-size: clamp(14px, 3.7vw, 18px); line-height: 1.45; letter-spacing: 0;
+  text-align: left; white-space: nowrap;
+  max-width: var(--maxw); width: 100%; margin: 4px auto 0;
+  color: var(--lava-ink);
+}
+.statusbar .credit a {
+  font-family: var(--mark);
+  font-size: 1.2em;
+  color: color-mix(in srgb, var(--lava-ink) 70%, #1f6bff 30%);
+  text-decoration: underline;
+  text-underline-offset: 2px; text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, currentColor 48%, transparent);
+}
+.statusbar .credit a:hover, .statusbar .credit a:focus-visible {
+  color: var(--accent); text-decoration-color: currentColor;
+}
+@media (prefers-color-scheme: dark) {
+  .credit { color: #f6edd8; }
+}
 
 /* ---- Modal / sheet ---- */
 .scrim { position: fixed; inset: 0; background: rgba(15,17,21,.4); backdrop-filter: blur(2px); z-index: 40; opacity: 0; pointer-events: none; transition: opacity .2s ease; }
@@ -558,7 +581,7 @@ body.scene-on .task-pin-edit[aria-pressed="true"] { color: #7fb7be; }
 .help-grid div { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--text-2); }
 
 /* toast — calm capsule, action as clear secondary beat */
-.toast { position: fixed; bottom: 64px; left: 50%; transform: translate(-50%, 12px); z-index: 50; opacity: 0; pointer-events: none;
+.toast { position: fixed; bottom: 88px; left: 50%; transform: translate(-50%, 12px); z-index: 50; opacity: 0; pointer-events: none;
   background: var(--text); color: var(--bg); font-size: 13px; font-weight: 500; padding: 10px 14px 10px 16px;
   border-radius: 14px; box-shadow: 0 8px 28px rgba(20,22,26,.18);
   transition: opacity .22s cubic-bezier(.22,1,.36,1), transform .22s cubic-bezier(.22,1,.36,1);
@@ -938,7 +961,7 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
   </div>
 </div>
 
-<div class="statusbar">
+<footer class="statusbar">
   <div class="inner">
     <span class="stat" title="Open tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span id="statOpen">0 open</span></span>
     <span class="stat" id="statSync" title="Last saved"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg><span id="syncTxt">saved</span></span>
@@ -946,7 +969,8 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
     <span class="lnk" id="lnkHideDone" hidden>Hide done</span>
     <span class="lnk" id="lnkBackup">Backup</span>
   </div>
-</div>
+  <p class="credit">A Happy Little App by <a href="https://stewalexander.com/" target="_blank" rel="noopener noreferrer">Stew Alexander</a></p>
+</footer>
 
 <!-- Backup sheet -->
 <div class="scrim" id="scrim"></div>
