@@ -25,6 +25,7 @@ const node=id=>{if(!nodes.has(id))nodes.set(id,new Node());return nodes.get(id);
 let renderedClick;
 const rendering=vm.createContext({
  $:id=>id==='#catStrip'?{addEventListener:(e,f)=>renderedClick=f}:node(id),
+ document:{body:{classList:{toggle(){}}}},
  Date,Classify:{LABELS:{work:'Work',home:'Home',misc:'Misc',groceries:'Groceries',errands:'Errands'},labelOf:id=>id},
  Dates:{bucketOf:()=> 'someday'},BUCKETS:[{id:'someday',label:'Someday'}],
  el:()=>new Node(),bucketHead:()=>({header:true}),taskRow:t=>({task:t.id}),

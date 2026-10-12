@@ -612,6 +612,7 @@ function render() {
   const open = tasks.filter(t => !t.done).length;
   $('#statOpen').textContent = `${open} open`;
   $('#hdrCount').textContent = tasks.length ? `· ${open} open` : '';
+  document.body.classList.toggle('many-tasks', tasks.length > 4);
   syncHideDone();
 
   if (listCollapsed) {
@@ -1656,16 +1657,20 @@ boot();
     return !!(vv && window.innerHeight - vv.height > 80);
   };
   const onScroll = () => {
+    const composing = typing() || keyboard();
+    document.body.classList.toggle('compose', composing);
     if (ticking) return; ticking = true;
     requestAnimationFrame(() => {
       // iOS bumps scrollY when the keyboard opens; that is not a user scroll.
-      if (!typing() && !keyboard()) {
+      if (!(typing() || keyboard())) {
         document.body.classList.toggle('scrolled', window.scrollY > 28);
       }
       ticking = false;
     });
   };
   window.addEventListener('scroll', onScroll, { passive: true });
+  document.addEventListener('focusin', onScroll);
+  document.addEventListener('focusout', onScroll);
   if (window.visualViewport) visualViewport.addEventListener('resize', onScroll, { passive: true });
   onScroll();
 })();

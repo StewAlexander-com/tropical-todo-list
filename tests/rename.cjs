@@ -83,6 +83,11 @@ check(/\.credit \{[\s\S]*?text-align: left/.test(html) && /\.credit \{[\s\S]*?co
 check(/\.credit a \{[\s\S]*?font-family: var\(--mark\)/.test(html) && /#1f6bff 30%/.test(html) && /font-size: 1\.2em/.test(html),'name link is Yellowtail, 30% bluer, 20% larger');
 check(!/body\.scene-on\.scrolled header \{ background: color-mix\(in srgb, var\(--bg\)/.test(html),'scrolled beach header is not a paper veil');
 check(/repeat\(6, minmax\(0, 1fr\)\)/.test(html),'phones use a 6-track folder grid');
+check(/<\/header>\s*<nav class="cat-strip"/.test(html),'folder strip sits below the sticky header, not inside it');
+check(/body\.compose header \{ position: static/.test(html) && /classList\.toggle\('compose'/.test(app),'compose unsticks the header so add cannot slide under folders');
+check(/scroll-margin-top/.test(html),'add row keeps scroll margin above the keyboard');
 check(/cat-cell:nth-child\(4\) \{ grid-column: 2 \/ 4/.test(html),'second folder row is centered');
+check(/many-tasks/.test(app) && /tasks\.length > 4/.test(app),'folder icons compact only when more than four tasks');
+check(/body\.scrolled\.many-tasks \.cat-btn svg/.test(html),'scrolled folder icons collapse with the masthead');
 
 console.log(`${n} rename pipeline checks passed`);
