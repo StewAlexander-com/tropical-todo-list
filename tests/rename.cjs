@@ -79,9 +79,9 @@ check(/Yellowtail/.test(html) && /Troplist<span class="tld"[^>]*>\.com<\/span>/.
 check(/Permanent\+Marker/.test(html) && /Permanent Marker/.test(html),'tagline uses Permanent Marker');
 check(/A Happy Little App by/.test(html) && /href="https:\/\/stewalexander\.com\/"/.test(html),'colophon credits Stew Alexander');
 check(/Pacifico/.test(html) && /\.credit \{[\s\S]*?font-family: var\(--hand\)/.test(html),'colophon uses Pacifico');
-check(/\.credit \{[\s\S]*?text-align: left/.test(html) && /\.credit \{[\s\S]*?color: var\(--lava-ink\)/.test(html),'colophon is left-aligned in masthead lava');
-check(/\.credit a \{[\s\S]*?font-family: var\(--mark\)/.test(html) && /#1f6bff 30%/.test(html) && /font-size: 1\.2em/.test(html),'name link is Yellowtail, 30% bluer, 20% larger');
-check(/@media \(prefers-color-scheme: dark\)[\s\S]{0,220}\.statusbar \.credit a \{ color: #7ec8f5/.test(html),'dark-mode name link is light sky blue');
+check(/\.credit \{[\s\S]*?text-align: left/.test(html) && /\.credit \{[\s\S]*?color: #f6edd8/.test(html),'colophon is left-aligned in masthead ivory');
+check(/\.credit a \{[\s\S]*?font-family: var\(--mark\)/.test(html) && /color: #7ec8f5/.test(html) && /font-size: 1\.2em/.test(html),'name link is Yellowtail sky blue on the lava bar');
+check(/\.statusbar \{[\s\S]*?background: rgba\(22, 29, 41, \.93\)/.test(html) && /\.statusbar \{[\s\S]*?border-radius: 10px 10px 0 0/.test(html),'footer is a rounded lava plate at 93% opacity');
 check(!/body\.scene-on\.scrolled header \{ background: color-mix\(in srgb, var\(--bg\)/.test(html),'scrolled beach header is not a paper veil');
 check(/repeat\(6, minmax\(0, 1fr\)\)/.test(html),'phones use a 6-track folder grid');
 check(/<\/header>\s*<nav class="cat-strip"/.test(html),'folder strip sits below the sticky header, not inside it');

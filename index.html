@@ -533,38 +533,34 @@ body.scene-on .task-pin-edit[aria-pressed="true"] { color: #7fb7be; }
 .statusbar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 15;
   display: flex; flex-direction: column; align-items: stretch;
-  background: color-mix(in srgb, var(--bg) 90%, transparent);
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-  border-top: 1px solid var(--line-soft);
+  background: rgba(22, 29, 41, .93);
+  border-top: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 10px 10px 0 0;
   padding: 8px max(20px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-right));
 }
-.statusbar .inner { max-width: var(--maxw); margin: 0 auto; width: 100%; display: flex; align-items: center; gap: 14px; font-size: 11.5px; color: var(--text-2); }
+.statusbar .inner { max-width: var(--maxw); margin: 0 auto; width: 100%; display: flex; align-items: center; gap: 14px; font-size: 11.5px; color: rgba(241, 243, 246, .72); }
 .statusbar .stat { display: inline-flex; align-items: center; gap: 5px; }
-.statusbar .stat svg { width: 13px; height: 13px; color: var(--text-faint); }
+.statusbar .stat svg { width: 13px; height: 13px; color: rgba(241, 243, 246, .5); }
 .statusbar .spacer { flex: 1; }
-.statusbar a, .statusbar .lnk { color: var(--text-2); cursor: pointer; text-decoration: none; transition: color .12s ease; }
+.statusbar a, .statusbar .lnk { color: rgba(241, 243, 246, .72); cursor: pointer; text-decoration: none; transition: color .12s ease; }
 .statusbar .lnk:hover { color: var(--accent); }
 .credit {
   font-family: var(--hand); font-weight: 400;
   font-size: clamp(14px, 3.7vw, 18px); line-height: 1.45; letter-spacing: 0;
   text-align: left; white-space: nowrap;
   max-width: var(--maxw); width: 100%; margin: 4px auto 0;
-  color: var(--lava-ink);
+  color: #f6edd8;
 }
 .statusbar .credit a {
   font-family: var(--mark);
   font-size: 1.2em;
-  color: color-mix(in srgb, var(--lava-ink) 70%, #1f6bff 30%);
+  color: #7ec8f5;
   text-decoration: underline;
   text-underline-offset: 2px; text-decoration-thickness: 1px;
   text-decoration-color: color-mix(in srgb, currentColor 48%, transparent);
 }
 .statusbar .credit a:hover, .statusbar .credit a:focus-visible {
   color: var(--accent); text-decoration-color: currentColor;
-}
-@media (prefers-color-scheme: dark) {
-  .credit { color: #f6edd8; }
-  .statusbar .credit a { color: #7ec8f5; }
 }
 
 /* ---- Modal / sheet ---- */
