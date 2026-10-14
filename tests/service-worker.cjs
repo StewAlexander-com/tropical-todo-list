@@ -9,7 +9,7 @@ async function request(path,mode='cors'){let response;const pending=[];handlers.
 (async()=>{
  await life('install');assert.ok(adds.every(r=>r.cache==='reload'));assert.ok(adds.some(r=>r.url.endsWith('soundscape.js?v=1.2.6')));
  await life('activate');assert.deepEqual(deleted,['quiet-v31','quiet-v46-folders','quiet-v47-strip','quiet-v48-touch','quiet-v49-wrap','quiet-v50-veil','quiet-v51-mark','quiet-v52-credit','quiet-v53-stack','quiet-v54-icons','quiet-v55-lava','quiet-v56-glass']);
- assert.equal(await (await request('app.js?v=1.4.0')).text(),'fresh');assert.equal(options.cache,'no-store');
+ assert.equal(await (await request('app.js?v=1.4.1')).text(),'fresh');assert.equal(options.cache,'no-store');
  offline=true;assert.equal(await (await request('index.html','navigate')).text(),'offline shell');
  assert.equal((await request('missing.js')).type,'error');
  for(const url of adds){assert.ok(fs.existsSync('.'+new URL(url.url).pathname.replace(/\/$/,'/index.html')),url.url);}

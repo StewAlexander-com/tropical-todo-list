@@ -686,49 +686,36 @@ function syncCatStrip() {
   if (strip) strip.setAttribute('aria-label', Classify.IDS.map(id => Classify.labelOf(id)).join(', '));
 }
 function startRename(id) {
-  if (!Classify.IDS.includes(id)) return;
-  if (renamingCat && renamingCat !== id) finishRename(true);
-  const btn = document.querySelector(`.cat-btn[data-cat="${id}"]`);
-  const nameEl = btn && btn.querySelector('.cat-name');
-  if (!nameEl) return;
-  renamingCat = id;
-  suppressCatClickUntil = Date.now() + 900;
-  nameEl.contentEditable = 'true';
-  nameEl.spellcheck = false;
-  nameEl.dataset.prev = Classify.labelOf(id);
-  nameEl.focus();
-  const range = document.createRange();
-  range.selectNodeContents(nameEl);
-  const s = window.getSelection();
-  s.removeAllRanges(); s.addRange(range);
-  nameEl.onkeydown = e => {
-    if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finishRename(true); }
-    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finishRename(false); }
-  };
-  nameEl.onblur = () => { if (renamingCat === id) finishRename(true); };
+  const picker = $('#renameFolder');
+  picker.innerHTML = Classify.IDS.map(key => `<option value="${key}">${esc(Classify.labelOf(key))}</option>`).join('');
+  picker.value = Classify.IDS.includes(id) ? id : (catFilter || Classify.IDS[0]);
+  loadRenameName();
+  openSheet('renameSheet');
 }
-function finishRename(commit) {
-  const id = renamingCat; if (!id) return;
-  const btn = document.querySelector(`.cat-btn[data-cat="${id}"]`);
-  const nameEl = btn && btn.querySelector('.cat-name');
-  renamingCat = null;
-  if (!nameEl) return;
-  nameEl.contentEditable = 'false';
-  nameEl.onkeydown = null;
-  nameEl.onblur = null;
-  const prev = nameEl.dataset.prev || Classify.labelOf(id);
-  delete nameEl.dataset.prev;
-  if (!commit) { nameEl.textContent = prev; return; }
-  const result = Classify.setLabel(id, nameEl.textContent);
+function loadRenameName() {
+  $('#renameName').value = Classify.labelOf($('#renameFolder').value);
+  $('#renameError').textContent = '';
+}
+async function saveFolderName(e) {
+  e.preventDefault();
+  const button = $('#renameSave');
+  if (button.disabled) return;
+  const id = $('#renameFolder').value;
+  const previous = Classify.labelOf(id);
+  const result = Classify.setLabel(id, $('#renameName').value);
   if (!result.ok) {
-    nameEl.textContent = prev;
-    toast(result.reason === 'duplicate' ? 'That name is already a folder' : 'Keep a short name');
+    $('#renameError').textContent = result.reason === 'duplicate' ? 'That name is already used. Choose another.' : 'Choose a short folder name.';
+    $('#renameName').focus();
     return;
   }
-  nameEl.textContent = result.label;
-  STORE.setMeta('catLabels', { ...Classify.LABELS }).catch(() => {});
-  render();
-  updateHint($('#search') ? $('#search').value : '');
+  button.disabled = true;
+  try {
+    await STORE.setMeta('catLabels', { ...Classify.LABELS });
+    closeSheets(); render(); updateHint($('#search').value); afterChange();
+  } catch {
+    Classify.LABELS[id] = previous;
+    $('#renameError').textContent = 'Could not save. Please try again.';
+  } finally { button.disabled = false; }
 }
 
 function bucketHead(label, count) {
@@ -1416,7 +1403,6 @@ document.addEventListener('keydown', e => {
   // global escape
   if (e.key === 'Escape') {
     if (document.querySelector('.sheet.on')) { closeSheets(); return; }
-    if (renamingCat) { finishRename(false); return; }
     if (editingId) { editingId = null; render(); return; }
     if (catPickId) { catPickId = null; render(); return; }
     if (query || tagFilter || catFilter || listCollapsed) { query=''; tagFilter=null; catFilter=null; listCollapsed=false; $('#search').value=''; updateHint(''); syncAddIdle(); render(); $('#search').blur(); return; }
@@ -1507,35 +1493,10 @@ function wire() {
     startRename(chip.dataset.cat);
   });
 
-  // Phones have no hover, so pencils stay hidden. Press-and-hold a folder to rename.
-  {
-    let holdTimer = 0;
-    const strip = $('#catStrip');
-    const clearHold = () => { clearTimeout(holdTimer); holdTimer = 0; };
-    strip.addEventListener('pointerdown', e => {
-      if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
-      if (e.target.closest('.cat-rename')) return;
-      const btn = e.target.closest('.cat-cell') && e.target.closest('.cat-cell').querySelector('.cat-btn');
-      if (!btn) return;
-      const id = btn.dataset.cat;
-      const x0 = e.clientX, y0 = e.clientY;
-      holdTimer = setTimeout(() => { holdTimer = 0; startRename(id); }, 520);
-      const move = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 10) clearHold(); };
-      const up = () => {
-        clearHold();
-        strip.removeEventListener('pointermove', move);
-        strip.removeEventListener('pointerup', up);
-        strip.removeEventListener('pointercancel', up);
-      };
-      strip.addEventListener('pointermove', move);
-      strip.addEventListener('pointerup', up);
-      strip.addEventListener('pointercancel', up);
-    });
-    strip.addEventListener('contextmenu', e => {
-      if (!e.target.closest('.cat-cell')) return;
-      e.preventDefault();
-    });
-  }
+  $('#renameFolders').onclick = () => { closeSheets(); startRename(catFilter); };
+  $('#renameFolder').onchange = loadRenameName;
+  $('#renameForm').onsubmit = saveFolderName;
+  $('#renameCancel').onclick = closeSheets;
 
   $('#lnkHideDone').onclick = () => {
     hideDone = !hideDone;

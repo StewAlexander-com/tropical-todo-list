@@ -20,6 +20,7 @@ A single-page to-do list that runs **entirely in your browser**. No account, no 
 
 ## Features
 
+- **Rename folders** — open Help (?), select Rename folders, choose a folder, and Save or Cancel; no touch-and-hold gesture is needed.
 - **One search-and-add bar** — typing filters existing tasks; Add or Enter creates a task. Clear with × or Escape. Both `/` and `n` focus the top field.
 - **Natural-language quick-add** — type `Pay invoice #billing tomorrow 3pm` and it parses the title, the `#billing` tag, and the due date/time automatically.
 - **Work · Home · Misc** — wording and times suggest a box; a referenced time files it (e.g. `Pay invoice tomorrow 3pm` → Work). Drag any task onto a bucket, or click an icon under search to open it.

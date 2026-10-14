@@ -74,8 +74,8 @@ check(/\.row-actions button:not\(\.del\) \{ opacity: 0; pointer-events: none; \}
 check(/\.task \.row-actions \{ opacity: 1; \}/.test(html) && /button\.del \{ width: 44px; height: 44px; \}/.test(html),'mobile trash is visible with a 44px target');
 check(/@media \(hover: hover\) and \(pointer: fine\)/.test(html),'hover reveal requires a fine pointer');
 check(!/\.cat-cell:focus-within \.cat-rename/.test(html),'folder tap focus does not pin a pencil');
-check(/pointerType !== 'touch'/.test(app) && /startRename\(id\)/.test(app),'press-and-hold on touch starts rename');
-check(/contextmenu/.test(app),'long-press does not open the iOS callout');
+check(!app.includes('holdTimer') && !app.includes("contentEditable = 'true'"),'rename does not use long press or editable button labels');
+check(app.includes("$('#renameForm').onsubmit = saveFolderName") && html.includes('id="renameFolders"'),'explicit rename control and form submission');
 check(/Yellowtail/.test(html) && /Troplist<span class="tld"[^>]*>\.com<\/span>/.test(html),'wordmark is Troplist.com in Yellowtail');
 check(/og:title" content="Troplist\.com/.test(html) && /og:site_name" content="Troplist\.com/.test(html),'share card names Troplist.com');
 check(!/og:title" content="Tropical ToDos/.test(html) && !/og:image:alt" content="Tropical ToDos/.test(html),'share card does not say Tropical ToDos');
@@ -98,3 +98,6 @@ check(/many-tasks/.test(app) && /tasks\.length > 4/.test(app),'folder icons comp
 check(/body\.scrolled\.many-tasks \.cat-btn svg/.test(html),'scrolled folder icons collapse with the masthead');
 
 console.log(`${n} rename pipeline checks passed`);
+
+check(html.indexOf('id="renameFolders"') > html.indexOf('id="helpSheet"'),'rename entry stays inside Help, not on main screen');
+check(!html.includes('class="folder-tools"'),'no additional main-screen folder toolbar');
