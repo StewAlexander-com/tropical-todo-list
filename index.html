@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="app-version" content="1.4.2">
+<meta name="app-version" content="1.4.3">
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)" />
@@ -587,6 +587,18 @@ body.scene-on .task-pin-edit[aria-pressed="true"] { color: #7fb7be; }
 }
 .statusbar .credit a:hover, .statusbar .credit a:focus-visible {
   color: var(--accent); text-decoration-color: currentColor;
+}
+
+/* Mobile footer: retain Apple's safe area once, without stacking extra
+   bottom padding on it. Keep enough scroll space for the last task. */
+@media (max-width: 600px) {
+  body { padding-bottom: 0; }
+  .app { padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+  .statusbar {
+    padding-top: 6px;
+    padding-bottom: max(4px, env(safe-area-inset-bottom, 0px));
+  }
+  .credit { margin-top: 2px; line-height: 1.25; white-space: normal; }
 }
 
 /* ---- Modal / sheet ---- */
