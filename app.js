@@ -890,7 +890,7 @@ function emptyState() {
   } else if (catFilter) {
     e.innerHTML = `<div class="ring">${ICON[catFilter]}</div><h3>Nothing in ${esc(Classify.labelOf(catFilter))}</h3><p>Wording only suggests a box. File a task here when you choose.</p>`;
   } else {
-    e.innerHTML = `<div class="ring">${ICON.leaf}</div><h3>A clear mind</h3><p>No tasks yet.</p><p><button type="button" class="nudge-link" id="emptyFocusAdd">Add your first task</button></p>`;
+    e.innerHTML = `<div class="ring">${ICON.leaf}</div><h3>Welcome to Troplist</h3><p><button type="button" class="nudge-link" id="emptyFocusAdd">Create your first task using the bar above</button></p>`;
   }
   // Wire empty CTAs after insert (caller appends first)
   requestAnimationFrame(() => {
