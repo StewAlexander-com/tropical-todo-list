@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="app-version" content="1.3.2">
+<meta name="app-version" content="1.4.0">
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)" />
@@ -505,6 +505,16 @@ body.is-dragging .cat-btn.drop-over .cat-label {
 .row-actions button:hover { background: var(--surface-2); color: var(--text); }
 .row-actions button.del:hover { color: var(--danger); }
 .row-actions svg { width: 15px; height: 15px; }
+/* Touch users need a discoverable delete action without hovering first. */
+@media (hover: none), (pointer: coarse), (max-width: 600px) {
+  .task .row-actions { opacity: 1; }
+  .row-actions button.del { width: 44px; height: 44px; }
+  .row-actions button.del svg { width: 18px; height: 18px; }
+  body.scene-on .row-actions button.del { color: #cbd5e1; }
+  .row-actions button:not(.del) { opacity: 0; pointer-events: none; }
+  .task.sel .row-actions button:not(.del),
+  .task:focus-within .row-actions button:not(.del) { opacity: 1; pointer-events: auto; }
+}
 
 /* edit inline */
 .task-edit { width: 100%; font: inherit; font-size: 14.5px; color: var(--text); background: var(--surface-2);
@@ -826,6 +836,22 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+/* One field for live search and explicit creation. */
+.unified { margin: 12px 0 0; }
+.unified-search-icon { width: 18px; height: 18px; flex: none; margin-left: 8px; color: var(--text-faint); }
+.clear-input { border: 0; background: transparent; color: inherit; font-size: 22px; cursor: pointer; min-width: 36px; min-height: 40px; }
+.clear-input[hidden] { display: none; }
+.input-guide { font-size: 11px; color: var(--text-muted); margin: 5px 10px 0; }
+body.scene-on .input-guide { color: #d8e3e8; text-shadow: 0 1px 3px #182129; }
+header .hint:empty { display: none; }
+header .hint { margin-bottom: 0; }
+body.scene-on header .hint:not(:empty) { background: rgba(22,29,41,.9); border-radius: 8px; padding: 8px 10px; margin-top: 6px; color: #e2e8f0; text-shadow: none; }
+body.scene-on header .hint .cat-pick { color: #d7e1e8; min-height: 32px; }
+body.scene-on header .hint .cat-pick.on { color: #8cdae2; text-decoration: underline; text-underline-offset: 4px; }
+body.scene-on header .hint b { color: #8cdae2; }
+body.scene-on .clear-input { color: #d7e1e8; }
+
+.unified input { font-size: 16px; }
 </style>
 <script type="application/ld+json">
 {
@@ -941,11 +967,14 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
       <div class="tagline"><span class="dash">&mdash;</span><span class="script">a calm list for unhurried days</span><span class="dash">&mdash;</span></div>
     </div>
 
-    <div class="search" id="searchWrap">
-      <svg class="s-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-      <input id="search" type="search" enterkeyhint="search" placeholder="Find existing tasks…" autocomplete="off" spellcheck="false" aria-label="Find existing tasks" />
-      <span class="kbd s-key">/</span>
+    <div class="add unified" id="searchWrap">
+      <svg class="unified-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="search" type="text" enterkeyhint="done" placeholder="Find or add a task…" autocomplete="off" aria-label="Find or add a task" aria-describedby="inputGuide" />
+      <button type="button" class="clear-input" id="clearInput" aria-label="Clear search and task text" hidden>×</button>
+      <button type="button" id="addBtn" title="Add task (Enter)">Add <span aria-hidden="true">↵</span></button>
     </div>
+    <div class="input-guide" id="inputGuide">Type to search · Enter to add</div>
+    <div class="hint" id="hint" role="status" aria-live="polite"></div>
   </header>
 
   <nav class="cat-strip" id="catStrip" aria-label="Errands, Groceries, Home, Work, and Misc">
@@ -985,15 +1014,6 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
         <button type="button" class="cat-rename" data-cat="misc" aria-label="Rename Misc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
       </div>
     </nav>
-
-  <div class="add" id="addWrap">
-    <button type="button" class="plus-btn" id="addPlus" title="Add task" aria-label="Add task">
-      <svg class="plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    </button>
-    <input id="add" type="text" enterkeyhint="done" placeholder="What needs doing?" autocomplete="off" aria-label="New task" />
-    <button type="button" id="addBtn">Add</button>
-  </div>
-  <div class="hint" id="hint" role="status" aria-live="polite"></div>
 
   <div class="list-panel">
     <div class="activefilter" id="activeFilter"></div>
@@ -1076,7 +1096,7 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
   </div>
   <div class="group">
     <h3>Find vs add</h3>
-    <p>Search finds what’s already on your list. New tasks go in the row below the boxes — tap <b>+</b> or <b>Add</b>.</p>
+    <p>Type in the top bar to find existing tasks as you type. To create a task, tap <b>Add</b> or press <b>Enter</b>. Dates, repeats, tags, and folder choices still work. Tap <b>×</b> or press <b>Esc</b> to clear the text.</p>
     <h3>Quick-add syntax</h3>
     <div class="help-grid">
       <div>Tag <span class="kbd">#billing</span></div>
@@ -1115,7 +1135,7 @@ body.scene-on .cat-mark:hover, body.scene-on .cat-pick-row:hover { background: r
 <div class="toast" id="toast" role="status"><span id="toastTxt"></span></div>
 
 <noscript><div style="max-width:560px;margin:60px auto;padding:0 24px;font-family:system-ui;color:#5d6168;text-align:center"><h1 style="color:#1a1c20">Troplist.com</h1><p>A calm, local-first to-do list that runs entirely in your browser. Please enable JavaScript to use it. Nothing is ever sent to a server.</p></div></noscript>
-<script src="app.js?v=1.3.12"></script>
+<script src="app.js?v=1.4.0"></script>
 <script src="soundscape.js?v=1.2.6"></script>
 <script src="ambient.js?v=1.3.2"></script>
 </body>

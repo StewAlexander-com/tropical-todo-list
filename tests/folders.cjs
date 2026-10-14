@@ -29,7 +29,7 @@ const rendering=vm.createContext({
  Date,Classify:{LABELS:{work:'Work',home:'Home',misc:'Misc',groceries:'Groceries',errands:'Errands'},labelOf:id=>id},
  Dates:{bucketOf:()=> 'someday'},BUCKETS:[{id:'someday',label:'Someday'}],
  el:()=>new Node(),bucketHead:()=>({header:true}),taskRow:t=>({task:t.id}),
- syncBadge(){},syncCatStrip(){},paintSel(){}
+ syncBadge(){},syncCatStrip(){},paintSel(){},updateHint(){},syncAddIdle(){}
 });
 vm.runInContext(`let listCollapsed=false,catFilter=null,catPickId=null,sel=-1,suppressCatClickUntil=0,tagFilter=null,query='',view=[],hideDone=false,renamingCat=null;
 let tasks=['work','home','misc','groceries','errands'].map(category=>({id:category,category,done:false,created:0}));

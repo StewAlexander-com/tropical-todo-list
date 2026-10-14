@@ -600,7 +600,7 @@ function render() {
     af.innerHTML = '<button type="button" class="folder-reset" id="showAllTasks">All tasks</button>';
     $('#showAllTasks').onclick = () => {
       listCollapsed = false; catFilter = null; tagFilter = null; query = '';
-      $('#search').value = ''; render();
+      $('#search').value = ''; updateHint(''); syncAddIdle(); render();
     };
   } else if (tagFilter) {
     af.className = 'activefilter on';
@@ -728,7 +728,7 @@ function finishRename(commit) {
   nameEl.textContent = result.label;
   STORE.setMeta('catLabels', { ...Classify.LABELS }).catch(() => {});
   render();
-  updateHint($('#add') ? $('#add').value : '');
+  updateHint($('#search') ? $('#search').value : '');
 }
 
 function bucketHead(label, count) {
@@ -814,7 +814,7 @@ function taskRow(t) {
   }
   t.tags.forEach(tag => {
     const chip = el('span', 'tag', '#' + esc(tag));
-    chip.onclick = () => { tagFilter = tag; query = ''; $('#search').value=''; sel = -1; render(); };
+    chip.onclick = () => { tagFilter = tag; query = ''; $('#search').value=''; updateHint(''); syncAddIdle(); sel = -1; render(); };
     meta.appendChild(chip);
   });
   meta.appendChild(catControls(t));
@@ -869,7 +869,7 @@ function catControls(t) {
 function emptyState() {
   const e = el('div', 'empty');
   if (query) {
-    e.innerHTML = `<div class="ring">${ICON.leaf}</div><h3>No matches</h3><p>Nothing matches “${esc(query)}”.</p><p><button type="button" class="nudge-link" id="emptyAddQuery">Add “${esc(query)}” as a task</button></p>`;
+    e.innerHTML = `<div class="ring">${ICON.leaf}</div><h3>No matches</h3><p>Nothing matches “${esc(query)}”.</p><p>Use Add above to create it.</p>`;
   } else if (tagFilter) {
     e.innerHTML = `<div class="ring">${ICON.leaf}</div><h3>Nothing tagged #${esc(tagFilter)}</h3><p>Clear the filter to see everything.</p>`;
   } else if (catFilter) {
@@ -880,13 +880,7 @@ function emptyState() {
   // Wire empty CTAs after insert (caller appends first)
   requestAnimationFrame(() => {
     const a = $('#emptyFocusAdd');
-    if (a) a.onclick = () => { $('#add').focus(); };
-    const q = $('#emptyAddQuery');
-    if (q) q.onclick = () => {
-      const text = query;
-      query = ''; $('#search').value = '';
-      addFromInput(text);
-    };
+    if (a) a.onclick = () => { $('#search').focus(); };
   });
   return e;
 }
@@ -920,8 +914,8 @@ function boxForParsed(p, raw, userPick) {
 async function addFromInput(raw) {
   raw = String(raw || '').trim();
   if (!raw) {
-    pokeField($('#addWrap'), 'Type a task first');
-    $('#add').focus();
+    pokeField($('#searchWrap'), 'Type a task first');
+    $('#search').focus();
     return;
   }
   const p = Parse.parse(raw);
@@ -931,8 +925,8 @@ async function addFromInput(raw) {
   pendingCat = null;
   tasks.push(t);
   await STORE.put(t);
-  $('#add').value = ''; updateHint(''); syncAddIdle();
-  query = ''; $('#search').value = '';
+  $('#search').value = ''; updateHint(''); syncAddIdle();
+  query = '';
   tagFilter = null; catFilter = null; listCollapsed = false; catPickId = null;
   render(); afterChange();
 }
@@ -948,10 +942,12 @@ function pokeField(node, msg) {
   if (msg) toast(msg);
 }
 function syncAddIdle() {
-  const wrap = $('#addWrap');
-  const add = $('#add');
+  const wrap = $('#searchWrap');
+  const add = $('#search');
   if (!wrap || !add) return;
   wrap.classList.toggle('is-idle', !add.value.trim());
+  const clear = $('#clearInput');
+  if (clear) clear.hidden = !add.value;
 }
 async function toggle(id) {
   const t = tasks.find(x => x.id === id); if (!t) return;
@@ -1342,7 +1338,7 @@ function confetti() {
 function updateHint(raw) {
   const h = $('#hint');
   if (!raw.trim()) {
-    h.innerHTML = '<span class="hint-idle">New tasks go here · try “Call Mom Friday 3pm”</span>';
+    h.innerHTML = '';
     pendingCat = null;
     return;
   }
@@ -1360,7 +1356,7 @@ function updateHint(raw) {
   }).join('');
   const lead = selected ? 'file in' : (s.top ? 'suggested' : 'box');
   bits.push(`${lead} <span class="cat-picks-hint">${picks}</span>`);
-  h.innerHTML = `→ ${esc(p.title || '(task)')} &nbsp;·&nbsp; ${bits.join(' · ')}`;
+  h.innerHTML = `If added: ${esc(p.title || '(task)')} &nbsp;·&nbsp; ${bits.join(' · ')}`;
 }
 
 /* ============================================================
@@ -1416,14 +1412,15 @@ function isTyping(e) {
   return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
 }
 document.addEventListener('keydown', e => {
+  if (e.isComposing || e.keyCode === 229) return;
   // global escape
   if (e.key === 'Escape') {
     if (document.querySelector('.sheet.on')) { closeSheets(); return; }
     if (renamingCat) { finishRename(false); return; }
     if (editingId) { editingId = null; render(); return; }
     if (catPickId) { catPickId = null; render(); return; }
-    if (query || tagFilter || catFilter || listCollapsed) { query=''; tagFilter=null; catFilter=null; listCollapsed=false; $('#search').value=''; render(); $('#search').blur(); return; }
-    if (document.activeElement === $('#search') || document.activeElement === $('#add')) document.activeElement.blur();
+    if (query || tagFilter || catFilter || listCollapsed) { query=''; tagFilter=null; catFilter=null; listCollapsed=false; $('#search').value=''; updateHint(''); syncAddIdle(); render(); $('#search').blur(); return; }
+    if (document.activeElement === $('#search')) document.activeElement.blur();
     return;
   }
   // When a sheet is open, only the focus trap runs — app shortcuts must not
@@ -1434,7 +1431,7 @@ document.addEventListener('keydown', e => {
 
   switch (e.key) {
     case '/': e.preventDefault(); $('#search').focus(); break;
-    case 'n': e.preventDefault(); $('#add').focus(); break;
+    case 'n': e.preventDefault(); $('#search').focus(); break;
     case 'j': e.preventDefault(); if (view.length){ sel = Math.min(view.length-1, sel+1); if(sel<0)sel=0; paintSel(); } break;
     case 'k': e.preventDefault(); if (view.length){ sel = Math.max(0, sel-1); paintSel(); } break;
     case 'x': case ' ': if (sel>=0){ e.preventDefault(); toggle(view[sel]); } break;
@@ -1452,22 +1449,31 @@ document.addEventListener('keydown', e => {
  * Wire up DOM
  * ============================================================ */
 function wire() {
-  const add = $('#add');
-  const addWrap = $('#addWrap');
-  const search = $('#search');
-  const searchWrap = $('#searchWrap');
-
-  const tryAdd = () => addFromInput(add.value);
-  add.addEventListener('input', () => { updateHint(add.value); syncAddIdle(); });
-  add.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tryAdd(); } });
-  $('#addBtn').onclick = tryAdd;
-  // + is a real control: submit if typed, else focus the field
-  $('#addPlus').onclick = () => {
-    if (add.value.trim()) tryAdd();
-    else { add.focus(); pokeField(addWrap, 'Type a task, then Add'); }
+  const add = $('#search');
+  let adding = false;
+  const tryAdd = async () => {
+    if (adding) return;
+    adding = true;
+    try { await addFromInput(add.value); }
+    finally { adding = false; }
   };
-  updateHint('');
-  syncAddIdle();
+  add.addEventListener('input', () => {
+    listCollapsed = false;
+    query = add.value.trim();
+    updateHint(add.value); syncAddIdle();
+    sel = -1; render();
+  });
+  add.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) {
+      e.preventDefault(); if (!e.repeat) tryAdd();
+    }
+  });
+  $('#addBtn').onclick = tryAdd;
+  $('#clearInput').onclick = () => {
+    add.value = ''; query = ''; pendingCat = null;
+    updateHint(''); syncAddIdle(); sel = -1; render(); add.focus();
+  };
+  updateHint(''); syncAddIdle();
 
   $('#hint').addEventListener('click', e => {
     const b = e.target.closest('[data-pending-cat]'); if (!b) return;
@@ -1530,40 +1536,6 @@ function wire() {
       e.preventDefault();
     });
   }
-
-  let st;
-  search.addEventListener('input', () => {
-    listCollapsed = false;
-    query = search.value.trim();
-    clearTimeout(st);
-    st = setTimeout(() => { sel = -1; render(); }, 70);
-  });
-  // Enter in search: empty → nudge; no matches → offer to add (people type tasks here)
-  search.addEventListener('keydown', e => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    const q = search.value.trim();
-    if (!q) {
-      if (!tasks.length) {
-        pokeField(searchWrap, 'Add a task below to get started');
-        add.focus();
-      } else {
-        pokeField(searchWrap, 'Type to find in your list');
-      }
-      return;
-    }
-    query = q;
-    render();
-    const hits = tasks.filter(matches);
-    if (!hits.length) {
-      toast('No matches', 'Add as task', () => {
-        const text = q;
-        query = ''; search.value = '';
-        addFromInput(text);
-      });
-      pokeField(searchWrap);
-    }
-  });
 
   $('#lnkHideDone').onclick = () => {
     hideDone = !hideDone;
