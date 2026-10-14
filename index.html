@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="app-version" content="1.4.3">
+<meta name="app-version" content="1.4.4">
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)" />
@@ -870,6 +870,15 @@ body.scene-on .clear-input { color: #d7e1e8; }
 #renameError { color: var(--danger); font-size: 13px; }
 .rename-actions { display: flex; justify-content: flex-end; gap: 12px; }
 .rename-actions button { min-height: 44px; min-width: 80px; }
+/* Readability polish: fitted surfaces keep secondary text stable over video. */
+body.scene-on .input-guide { display: table; max-width: calc(100% - 20px); padding: 3px 8px; border-radius: 6px; background: #202b39; color: #e2e8f0; text-shadow: none; }
+body.scene-on .empty { width: fit-content; max-width: 100%; margin: 26px auto; padding: 20px; border-radius: 12px; background: rgba(22,29,41,.94); }
+body.scene-on .empty h3, body.scene-on .empty p, body.scene-on .empty .nudge-link { color: #e2e8f0; text-shadow: none; }
+body.scene-on .empty .ring { color: #cbd5e1; border-color: #94a3b8; box-shadow: none; }
+body.scene-on .task-note, body.scene-on .due { color: #d4dee8; }
+body.scene-on .task.done .task-title { color: #b8c6d5; }
+body.scene-on .task .tag { color: #b7eef2; background: #263d48; }
+body.scene-on .activefilter { width: fit-content; max-width: 100%; padding: 4px 8px; border-radius: 8px; background: #202b39; color: #e2e8f0; }
 </style>
 <script type="application/ld+json">
 {
@@ -1069,7 +1078,7 @@ body.scene-on .clear-input { color: #d7e1e8; }
 <div class="sheet" id="backupSheet" role="dialog" aria-modal="true" aria-labelledby="bkTitle" aria-hidden="true">
   <button class="iconbtn close" id="bkClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   <h2 id="bkTitle">Backup &amp; restore</h2>
-  <p class="sub">Your tasks never leave this device. Snapshots are plain JSON you control. Merge keeps the newer copy of a task when both devices edited it.</p>
+  <p class="sub">Your tasks never leave this device. Snapshots are plain JSON you control. Merge keeps newer tasks and folder names; ties keep this device’s copy. Older backups without name timestamps keep your existing custom folder names.</p>
 
   <div class="group">
     <h3>Manual</h3>
@@ -1078,7 +1087,7 @@ body.scene-on .clear-input { color: #d7e1e8; }
       <button class="btn accent" id="bkExport">Export</button>
     </div>
     <div class="opt">
-      <div class="txt"><b>Restore from file</b><span>Merge keeps the newer edit. Replace is opt-in.</span></div>
+      <div class="txt"><b>Restore from file</b><span>Merge preserves newer edits. Replace restores the snapshot instead.</span></div>
       <button class="btn" id="bkImport">Restore…</button>
       <input type="file" id="bkFile" accept="application/json,.json" class="sr" />
     </div>
@@ -1167,7 +1176,7 @@ body.scene-on .clear-input { color: #d7e1e8; }
 <div class="toast" id="toast" role="status"><span id="toastTxt"></span></div>
 
 <noscript><div style="max-width:560px;margin:60px auto;padding:0 24px;font-family:system-ui;color:#5d6168;text-align:center"><h1 style="color:#1a1c20">Troplist.com</h1><p>A calm, local-first to-do list that runs entirely in your browser. Please enable JavaScript to use it. Nothing is ever sent to a server.</p></div></noscript>
-<script src="app.js?v=1.4.1"></script>
+<script src="app.js?v=1.4.4"></script>
 <script src="soundscape.js?v=1.2.6"></script>
 <script src="ambient.js?v=1.3.2"></script>
 </body>

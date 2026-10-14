@@ -36,6 +36,28 @@ const Store = (() => {
     async all() { const { os } = await tx(TASKS, 'readonly'); return wrap(os.getAll()); },
     async put(task) { const { os, done } = await tx(TASKS, 'readwrite'); os.put(task); await done; return task; },
     async putMany(tasks) { const { os, done } = await tx(TASKS, 'readwrite'); tasks.forEach(t => os.put(t)); await done; },
+    async saveLabels(labels, times) {
+      const { os, done } = await tx(META, 'readwrite');
+      os.put({ k: 'catLabels', v: labels });
+      os.put({ k: 'catLabelTimes', v: times });
+      await done;
+    },
+    async restoreSnapshot(nextTasks, labels, times) {
+      const db = await open();
+      await new Promise((resolve, reject) => {
+        const transaction = db.transaction([TASKS, META], 'readwrite');
+        transaction.oncomplete = resolve;
+        transaction.onabort = transaction.onerror = () => reject(transaction.error || new Error('Restore failed'));
+        try {
+          const os = transaction.objectStore(TASKS);
+          os.clear();
+          nextTasks.forEach(task => os.put(task));
+          const meta = transaction.objectStore(META);
+          meta.put({ k: 'catLabels', v: labels });
+          meta.put({ k: 'catLabelTimes', v: times });
+        } catch (error) { transaction.abort(); reject(error); }
+      });
+    },
     async del(id) { const { os, done } = await tx(TASKS, 'readwrite'); os.delete(id); await done; },
     async clear() { const { os, done } = await tx(TASKS, 'readwrite'); os.clear(); await done; },
     async getMeta(k) { const { os } = await tx(META, 'readonly'); const r = await wrap(os.get(k)); return r ? r.v : undefined; },
@@ -513,6 +535,7 @@ let pendingCat = null;    // box the user picked in the add hint
 let catPickId = null;     // task id showing the 3-box picker
 let suppressCatClickUntil = 0;
 let catLearned = { work: [], home: [], misc: [], groceries: [], errands: [] };
+let catLabelTimes = {};
 let renamingCat = null;
 let editingId = null;
 let hideDone = false;
@@ -708,9 +731,14 @@ async function saveFolderName(e) {
     $('#renameName').focus();
     return;
   }
+  Classify.LABELS[id] = previous;
+  const labels = { ...Classify.LABELS, [id]: result.label };
+  const times = { ...catLabelTimes };
+  if (result.label !== previous) times[id] = Math.max(Date.now(), BackupRules.time(times[id]) + 1);
   button.disabled = true;
   try {
-    await STORE.setMeta('catLabels', { ...Classify.LABELS });
+    await STORE.saveLabels(labels, times);
+    Object.assign(Classify.LABELS, labels); catLabelTimes = times;
     closeSheets(); render(); updateHint($('#search').value); afterChange();
   } catch {
     Classify.LABELS[id] = previous;
@@ -1013,10 +1041,12 @@ function rememberChoice(title, cat) {
 }
 async function fileTask(id, cat) {
   const t = tasks.find(x => x.id === id); if (!t) return;
-  t.category = cat || null;
+  const next = { ...t, category: cat || null, updatedAt: Math.max(Date.now(), BackupRules.taskStamp(t) + 1) };
+  await STORE.put(next);
+  Object.assign(t, next);
   catPickId = null;
   if (cat) rememberChoice(t.title, cat);
-  await STORE.put(t); render(); afterChange();
+  render(); afterChange();
   if (cat) toast('Filed in ' + Classify.labelOf(cat));
 }
 
@@ -1167,17 +1197,52 @@ async function afterChange() {
 /* ============================================================
  * Backup module — export/import + File System Access rotation
  * ============================================================ */
+const BackupRules = (() => {
+  const time = value => Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : 0;
+  const taskStamp = task => Math.max(time(task.updatedAt), time(task.completedAt), time(task.created));
+  function folders(local, localTimes, incoming, incomingTimes, replace = false) {
+    const base = replace ? { ...Classify.DEFAULTS } : { ...local };
+    const labels = { ...base }, times = replace ? {} : { ...localTimes };
+    const changed = new Set();
+    for (const id of Classify.IDS) {
+      if (typeof incoming?.[id] !== 'string') continue;
+      const name = incoming[id].replace(/\s+/g, ' ').trim().slice(0, 18) || Classify.DEFAULTS[id];
+      if (!Classify.slug(name)) continue;
+      const stamp = time(incomingTimes?.[id]), current = time(localTimes[id]);
+      // Legacy labels can populate an untouched default, but never overwrite
+      // an existing custom name or a deliberate reset to the default.
+      const adopt = replace || stamp > current ||
+        (!stamp && !current && local[id] === Classify.DEFAULTS[id]);
+      if (adopt) { labels[id] = name; times[id] = stamp; changed.add(id); }
+    }
+    // Evaluate the complete mapping so valid swaps work. Conflicting incoming
+    // names are retained locally, including collisions caused by a rollback.
+    let retry = true;
+    while (retry) {
+      retry = false;
+      for (const id of Classify.IDS) {
+        const duplicates = Classify.IDS.filter(other => Classify.slug(labels[other]) === Classify.slug(labels[id]));
+        if (duplicates.length < 2) continue;
+        for (const key of duplicates) if (changed.has(key)) {
+          labels[key] = base[key]; times[key] = replace ? 0 : time(localTimes[key]);
+          changed.delete(key); retry = true;
+        }
+      }
+    }
+    return { labels, times, updated: [...changed].filter(id => labels[id] !== local[id]).length };
+  }
+  return { time, taskStamp, folders };
+})();
+
 const Backup = (() => {
   const KEEP = 10;
   let dirHandle = null;
   let supported = 'showDirectoryPicker' in window;
 
   function snapshot() {
-    return { app: 'quiet', version: 3, exportedAt: new Date().toISOString(), count: tasks.length, folders: { ...Classify.LABELS }, tasks };
+    return { app: 'quiet', version: 4, exportedAt: new Date().toISOString(), count: tasks.length, folders: { ...Classify.LABELS }, folderUpdatedAt: { ...catLabelTimes }, tasks };
   }
-  function taskStamp(t) {
-    return +t.updatedAt || +t.completedAt || +t.created || 0;
-  }
+  const taskStamp = BackupRules.taskStamp;
   function mergeById(local, incoming) {
     const byId = new Map(local.map(t => [t.id, t]));
     let added = 0, updated = 0, kept = 0;
@@ -1206,29 +1271,31 @@ const Backup = (() => {
         const data = JSON.parse(r.result);
         const incoming = Array.isArray(data) ? data : data.tasks;
         if (!Array.isArray(incoming)) throw new Error('Not a Quiet backup');
+        if (incoming.some(t => !t || typeof t !== 'object' || typeof t.title !== 'string' ||
+          (t.raw != null && typeof t.raw !== 'string') ||
+          (t.tags != null && (!Array.isArray(t.tags) || t.tags.some(tag => typeof tag !== 'string'))) ||
+          (t.due != null && !Number.isFinite(t.due)))) throw new Error('Invalid task data');
         // normalize
         const norm = incoming.map(t => ({
           id: t.id || uid(), title: t.title || '', raw: t.raw || t.title || '',
           tags: Array.isArray(t.tags) ? t.tags : [], due: t.due ?? null,
-          hasTime: !!t.hasTime, done: !!t.done, created: t.created || Date.now(), completedAt: t.completedAt ?? null,
+          hasTime: !!t.hasTime, done: !!t.done, created: BackupRules.time(t.created), completedAt: t.completedAt ?? null,
           category: Classify.IDS.includes(t.category) ? t.category : null,
           repeat: Dates.normalizeRepeat(t.repeat),
           notes: typeof t.notes === 'string' ? t.notes : '',
           pinned: !!t.pinned,
-          updatedAt: t.updatedAt || t.created || Date.now(),
+          updatedAt: BackupRules.taskStamp(t),
         }));
-        let added = 0, updated = 0, kept = 0;
-        if (mode === 'replace') { await STORE.clear(); tasks = norm; added = norm.length; }
-        else {
-          const m = mergeById(tasks, norm);
-          tasks = m.tasks; added = m.added; updated = m.updated; kept = m.kept;
-        }
-        if (data && data.folders) {
-          Classify.applyLabels(data.folders);
-          await STORE.setMeta('catLabels', { ...Classify.LABELS });
-        }
-        await STORE.putMany(tasks);
-        cb(null, { n: norm.length, added, updated, kept });
+        const merged = mode === 'replace'
+          ? { tasks: norm, added: norm.length, updated: 0, kept: 0 }
+          : mergeById(tasks, norm);
+        const folderState = BackupRules.folders(Classify.LABELS, catLabelTimes, data.folders, data.folderUpdatedAt, mode === 'replace');
+        // Publish in-memory state only after the entire transaction commits.
+        await STORE.restoreSnapshot(merged.tasks, folderState.labels, folderState.times);
+        tasks = merged.tasks;
+        Object.assign(Classify.LABELS, folderState.labels);
+        catLabelTimes = folderState.times;
+        cb(null, { n: norm.length, added: merged.added, updated: merged.updated, kept: merged.kept, foldersUpdated: folderState.updated });
       } catch (e) { cb(e); }
     };
     r.onerror = () => cb(r.error);
@@ -1525,10 +1592,10 @@ function wire() {
       mode = 'replace';
     }
     Backup.importFile(f, mode, (err, n) => {
-      if (err) { status('Could not read that file — ' + err.message + '. Your tasks are unchanged.', 'err'); return; }
+      if (err) { status('Could not restore this backup. Check the file and available storage. Your tasks and folder names are unchanged.', 'err'); return; }
       render(); afterChange();
       if (mode === 'replace') status(`Replaced — ${n.n} task${n.n!==1?'s':''} loaded.`, 'ok');
-      else status(`Merged — ${n.added} added, ${n.updated} newer, ${n.kept} kept.`, 'ok');
+      else status(`Merged — ${n.added} added, ${n.updated} newer, ${n.kept} kept${n.foldersUpdated ? ` · ${n.foldersUpdated} folder names updated` : ''}.`, 'ok');
     });
   };
   $('#bkFolder').onclick = async () => {
@@ -1569,7 +1636,12 @@ async function boot() {
   } catch (e) {}
   try {
     const saved = await STORE.getMeta('catLabels');
-    if (saved) Classify.applyLabels(saved);
+    if (saved) {
+      const state = BackupRules.folders(Classify.DEFAULTS, {}, saved, {}, true);
+      Object.assign(Classify.LABELS, state.labels);
+    }
+    const times = await STORE.getMeta('catLabelTimes');
+    if (times && typeof times === 'object') catLabelTimes = Object.fromEntries(Classify.IDS.map(id => [id, BackupRules.time(times[id])]));
   } catch (e) {}
   try { hideDone = (await STORE.getMeta('hideDone')) === true; } catch (e) {}
   await Backup.restoreHandle();

@@ -111,3 +111,14 @@ Flaticon palm-tree and to-do collections were reviewed for general visual
 research; no Flaticon artwork, paths, or downloadable assets are used.
 Reference collections: https://www.flaticon.com/free-icons/palm-tree and
 https://www.flaticon.com/free-icons/to-do-list.
+
+### Backup merge reliability (v1.4.4)
+
+Folder moves advance the task edit timestamp. Version 4 snapshots include
+per-folder name timestamps; merge preserves the newer edit and keeps the local
+copy on ties. Legacy snapshots still load, but names without timestamps cannot
+overwrite existing custom names. Replace intentionally restores snapshot names.
+Conflicting duplicate folder names are ignored; valid simultaneous swaps work.
+Tasks and names restore in one IndexedDB transaction, so a failed restore does
+not leave a partially imported list. Run `node tests/backup.cjs` for merge,
+legacy compatibility, timestamp, and rollback regression checks.
