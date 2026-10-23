@@ -96,6 +96,12 @@ check(/scroll-margin-top/.test(html),'add row keeps scroll margin above the keyb
 check(/cat-cell:nth-child\(4\) \{ grid-column: 2 \/ 4/.test(html),'second folder row is centered');
 check(/many-tasks/.test(app) && /tasks\.length > 4/.test(app),'folder icons compact only when more than four tasks');
 check(/body\.scrolled\.many-tasks \.cat-btn svg/.test(html),'scrolled folder icons collapse with the masthead');
+check(/id="moveTray"/.test(html) && /id="movePicks"/.test(html) && /id="moveClose"/.test(html),'touch move tray is in the page');
+check(/\.move-pick \{[\s\S]*?min-height: 64px/.test(html),'move tray targets are at least 44px tall');
+check(/if \(touchUI\(\)\) openMove\(/.test(app),'tapping a task on touch opens the move tray');
+check(/if \(e\.pointerType !== 'mouse'\) return;/.test(app),'touch never lifts a drag ghost');
+check(/if \(moveId\) \{ moveTo\(moveId, c\); return; \}/.test(app),'folder strip files the picked task while moving');
+check(/'Undo',\s*\(\) => fileTask\(id, prev, \{ quiet: true \}\)/.test(app),'tray moves can be undone');
 
 console.log(`${n} rename pipeline checks passed`);
 

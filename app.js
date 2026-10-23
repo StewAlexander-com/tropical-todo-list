@@ -533,6 +533,8 @@ let catFilter = null;     // currently open folder
 let listCollapsed = false; // closing a folder hides rows; it does not show all
 let pendingCat = null;    // box the user picked in the add hint
 let catPickId = null;     // task id showing the 3-box picker
+let moveId = null;        // touch: task waiting for a folder tap
+let lastPointer = '';     // pointerType of the most recent press
 let suppressCatClickUntil = 0;
 let catLearned = { work: [], home: [], misc: [], groceries: [], errands: [] };
 let catLabelTimes = {};
@@ -707,6 +709,7 @@ function syncCatStrip() {
   });
   const strip = $('#catStrip');
   if (strip) strip.setAttribute('aria-label', Classify.IDS.map(id => Classify.labelOf(id)).join(', '));
+  syncMoveTray();
 }
 function startRename(id) {
   const picker = $('#renameFolder');
@@ -847,6 +850,7 @@ function taskRow(t) {
     if (e.target.closest('button,.check,.tag')) return;
     const i = view.indexOf(t.id); if (i >= 0) { sel = i; paintSel(); }
     if (catPickId && catPickId !== t.id) { catPickId = null; render(); }
+    if (touchUI()) openMove(moveId === t.id ? null : t.id);
   };
   row.addEventListener('pointerdown', e => Drag.begin(e, t.id));
   return row;
@@ -876,7 +880,15 @@ function catControls(t) {
     ? Classify.labelOf(t.category) + ' — change box'
     : (s && s.top ? 'Suggested ' + Classify.labelOf(s.top) + '. Choose a box' : 'Choose a box');
   b.setAttribute('aria-label', b.title);
-  b.onclick = ev => { ev.stopPropagation(); catPickId = t.id; render(); };
+  b.onclick = ev => {
+    ev.stopPropagation();
+    if (touchUI()) {
+      const i = view.indexOf(t.id); if (i >= 0) { sel = i; paintSel(); }
+      openMove(t.id);
+      return;
+    }
+    catPickId = t.id; render();
+  };
   wrap.appendChild(b);
   return wrap;
 }
@@ -1012,7 +1024,7 @@ async function snooze(id) {
     await STORE.put(cur); render(); afterChange();
   });
 }
-function startEdit(id) { editingId = id; catPickId = null; render(); }
+function startEdit(id) { editingId = id; catPickId = null; moveId = null; render(); }
 async function commitEdit(id, raw, notes) {
   const t = tasks.find(x => x.id === id); if (!t) { editingId = null; return render(); }
   raw = String(raw || '').trim();
@@ -1039,7 +1051,7 @@ function rememberChoice(title, cat) {
   catLearned[cat] = arr.slice(-80);
   STORE.setMeta('catLearned', catLearned).catch(() => {});
 }
-async function fileTask(id, cat) {
+async function fileTask(id, cat, opts = {}) {
   const t = tasks.find(x => x.id === id); if (!t) return;
   const next = { ...t, category: cat || null, updatedAt: Math.max(Date.now(), BackupRules.taskStamp(t) + 1) };
   await STORE.put(next);
@@ -1047,7 +1059,7 @@ async function fileTask(id, cat) {
   catPickId = null;
   if (cat) rememberChoice(t.title, cat);
   render(); afterChange();
-  if (cat) toast('Filed in ' + Classify.labelOf(cat));
+  if (cat && !opts.quiet) toast('Filed in ' + Classify.labelOf(cat));
 }
 
 /* Pointer drag — pick up a task and drop it on Work / Home / Misc.
@@ -1060,7 +1072,9 @@ const Drag = (() => {
   const reduce = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function begin(e, id) {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // Touch files by tap-then-folder (move tray); a held finger must not lift a ghost.
+    if (e.pointerType !== 'mouse') return;
+    if (e.button !== 0) return;
     if (e.target.closest('button,.check,.tag,input,.cat-picks')) return;
     endListeners();
     taskId = id; sx = e.clientX; sy = e.clientY; pid = e.pointerId;
@@ -1136,6 +1150,65 @@ const Drag = (() => {
   function consume() { const d = dragged; dragged = false; return d; }
   return { begin, consume };
 })();
+
+/* Touch filing: tap a task, then tap a folder in the tray (or the strip).
+ * The tray sits at thumb height so the strip never has to be on screen. */
+function touchUI() {
+  if (lastPointer) return lastPointer !== 'mouse';
+  return matchMedia('(hover: none)').matches;
+}
+function openMove(id) {
+  moveId = id || null;
+  if (moveId) {
+    catPickId = null;
+    const a = document.activeElement;
+    if (a && a.matches && a.matches('input, textarea')) a.blur();
+  }
+  syncMoveTray();
+  if (moveId) requestAnimationFrame(() => revealAboveTray(moveId));
+}
+function syncMoveTray() {
+  const tray = $('#moveTray'); if (!tray) return;
+  const t = moveId ? tasks.find(x => x.id === moveId) : null;
+  if (!t) moveId = null;
+  document.body.classList.toggle('moving', !!t);
+  tray.classList.toggle('on', !!t);
+  if (!t) return;
+  $('#moveTitle').textContent = 'Move “' + (t.title || '(untitled)') + '” to';
+  const s = t.category ? null : Classify.suggest(t.title, t.tags, t.due, t.hasTime, catLearned, t.raw);
+  const picks = $('#movePicks');
+  picks.innerHTML = '';
+  Classify.IDS.forEach(id => {
+    const on = t.category === id;
+    const b = el('button', 'move-pick' + (on ? ' on' : '') + (s && s.top === id ? ' best' : ''),
+      ICON[id] + `<span>${esc(Classify.labelOf(id))}</span>`);
+    b.type = 'button';
+    b.dataset.cat = id;
+    b.setAttribute('aria-pressed', String(on));
+    b.setAttribute('aria-label', (on ? 'Remove from ' : 'Move to ') + Classify.labelOf(id));
+    picks.appendChild(b);
+  });
+}
+function revealAboveTray(id) {
+  const row = document.querySelector('.task[data-id="' + id + '"]');
+  const tray = $('#moveTray');
+  if (!row || !tray) return;
+  // Measure the settled tray, not its mid-slide transform.
+  const gap = window.innerHeight - tray.offsetHeight - 12 - row.getBoundingClientRect().bottom;
+  if (gap < 0) {
+    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollBy({ top: -gap, behavior: smooth ? 'smooth' : 'auto' });
+  }
+}
+async function moveTo(id, cat) {
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  const prev = t.category || null;
+  const next = prev === cat ? null : cat;
+  moveId = null; sel = -1;
+  await fileTask(id, next, { quiet: true });
+  toast(next ? 'Moved to ' + Classify.labelOf(next) : 'Removed from ' + Classify.labelOf(prev), 'Undo',
+    () => fileTask(id, prev, { quiet: true }));
+}
 // Undo stack — each delete is independently recoverable, so rapid deletes
 // don't clobber one another (audit finding 1c).
 const undoStack = [];
@@ -1471,6 +1544,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (document.querySelector('.sheet.on')) { closeSheets(); return; }
     if (editingId) { editingId = null; render(); return; }
+    if (moveId) { openMove(null); return; }
     if (catPickId) { catPickId = null; render(); return; }
     if (query || tagFilter || catFilter || listCollapsed) { query=''; tagFilter=null; catFilter=null; listCollapsed=false; $('#search').value=''; updateHint(''); syncAddIdle(); render(); $('#search').blur(); return; }
     if (document.activeElement === $('#search')) document.activeElement.blur();
@@ -1542,6 +1616,7 @@ function wire() {
     if (suppress) { e.preventDefault(); e.stopPropagation(); return; }
     const b = e.target.closest('.cat-btn'); if (!b) return;
     const c = b.dataset.cat;
+    if (moveId) { moveTo(moveId, c); return; }
     listCollapsed = catFilter === c;
     catFilter = listCollapsed ? null : c;
     catPickId = null; sel = -1;
@@ -1552,6 +1627,21 @@ function wire() {
     if (!catPickId) return;
     if (e.target.closest('.cat-picks, .cat-strip, .hint')) return;
     catPickId = null; render();
+  });
+
+  document.addEventListener('pointerdown', e => { lastPointer = e.pointerType || ''; }, true);
+  $('#movePicks').addEventListener('click', e => {
+    const b = e.target.closest('.move-pick'); if (!b || !moveId) return;
+    moveTo(moveId, b.dataset.cat);
+  });
+  $('#moveClose').onclick = () => openMove(null);
+  document.addEventListener('click', e => {
+    if (!moveId) return;
+    if (e.target.closest('.task, .move-tray, .cat-strip, .toast')) return;
+    openMove(null);
+  });
+  document.addEventListener('focusin', e => {
+    if (moveId && e.target.matches('input, textarea, [contenteditable="true"]')) openMove(null);
   });
 
   $('#catStrip').addEventListener('click', e => {

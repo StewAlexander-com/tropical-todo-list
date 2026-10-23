@@ -3,7 +3,7 @@ const source=fs.readFileSync('app.js','utf8');let handler;
 const start=source.indexOf("  $('#catStrip').addEventListener('click'");
 const end=source.indexOf("  document.addEventListener('click'",start);
 const ctx=vm.createContext({$:()=>({addEventListener:(type,fn)=>handler=fn}),Date,render(){}});
-vm.runInContext('let listCollapsed=false,catFilter=null,catPickId=null,sel=-1,suppressCatClickUntil=0,renamingCat=null;'+source.slice(start,end),ctx);
+vm.runInContext('let listCollapsed=false,catFilter=null,catPickId=null,moveId=null,sel=-1,suppressCatClickUntil=0,renamingCat=null;'+source.slice(start,end),ctx);
 const state=()=>vm.runInContext('catFilter',ctx);
 const click=(id,detail=1)=>handler({detail,target:{closest:()=>({dataset:{cat:id}})},preventDefault(){},stopPropagation(){}});
 for(const id of ['work','home','misc','groceries','errands']){click(id);assert.equal(state(),id);click(id);assert.equal(state(),null);}
@@ -11,7 +11,11 @@ click('work');click('home');assert.equal(state(),'home');click('home');assert.eq
 vm.runInContext('suppressCatClickUntil=Date.now()-1',ctx);click('misc');assert.equal(state(),'misc');
 vm.runInContext('suppressCatClickUntil=Date.now()+350',ctx);click('misc');assert.equal(state(),'misc');click('misc');assert.equal(state(),null);
 vm.runInContext('suppressCatClickUntil=Date.now()+350',ctx);click('work',0);assert.equal(state(),'work');
-console.log('Folder regressions passed: all toggles, switching, expired drag guard, synthetic click, keyboard activation');
+const moved=[];ctx.moveTo=(id,c)=>moved.push([id,c]);
+vm.runInContext("catFilter=null;suppressCatClickUntil=0;moveId='t1'",ctx);click('groceries');
+assert.deepEqual(moved,[['t1','groceries']]);assert.equal(state(),null,'tapping a folder while moving files the task, it does not open the folder');
+vm.runInContext('moveId=null',ctx);click('groceries');assert.equal(state(),'groceries');assert.equal(moved.length,1);
+console.log('Folder regressions passed: all toggles, switching, expired drag guard, synthetic click, keyboard activation, tap-to-move');
 
 // Exercise the real renderer with a populated folder, not only its filter flag.
 class Node {
@@ -31,7 +35,7 @@ const rendering=vm.createContext({
  el:()=>new Node(),bucketHead:()=>({header:true}),taskRow:t=>({task:t.id}),
  syncBadge(){},syncCatStrip(){},paintSel(){},updateHint(){},syncAddIdle(){}
 });
-vm.runInContext(`let listCollapsed=false,catFilter=null,catPickId=null,sel=-1,suppressCatClickUntil=0,tagFilter=null,query='',view=[],hideDone=false,renamingCat=null;
+vm.runInContext(`let listCollapsed=false,catFilter=null,catPickId=null,moveId=null,sel=-1,suppressCatClickUntil=0,tagFilter=null,query='',view=[],hideDone=false,renamingCat=null;
 let tasks=['work','home','misc','groceries','errands'].map(category=>({id:category,category,done:false,created:0}));
 function matches(t){return !catFilter || t.category===catFilter;}
 `+source.slice(source.indexOf('function render()'),source.indexOf('function syncCatStrip()'))+source.slice(start,end),rendering);

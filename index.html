@@ -601,6 +601,51 @@ body.scene-on .task-pin-edit[aria-pressed="true"] { color: #7fb7be; }
   .credit { margin-top: 2px; line-height: 1.25; white-space: normal; }
 }
 
+/* ---- Touch move tray: tap a task, then tap a folder ---- */
+.move-tray {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  background: rgb(22, 29, 41);
+  border-top: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -10px 32px rgba(0, 0, 0, .28);
+  padding: 6px max(14px, env(safe-area-inset-left)) calc(12px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-right));
+  transform: translateY(105%); visibility: hidden;
+  transition: transform .24s cubic-bezier(.22, 1, .36, 1), visibility 0s linear .24s;
+}
+.move-tray.on { transform: none; visibility: visible; transition: transform .24s cubic-bezier(.22, 1, .36, 1); }
+body.compose .move-tray { transform: translateY(105%); visibility: hidden; }
+.move-head { max-width: var(--maxw); margin: 0 auto 6px; display: flex; align-items: center; gap: 8px; }
+.move-title {
+  flex: 1; min-width: 0; font-size: 13px; color: rgba(241, 243, 246, .8);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.move-close {
+  appearance: none; border: none; background: none; cursor: pointer; flex: none;
+  width: 44px; height: 44px; margin-right: -10px; border-radius: 10px;
+  display: grid; place-items: center; color: rgba(241, 243, 246, .72);
+}
+.move-close svg { width: 18px; height: 18px; }
+.move-picks { max-width: var(--maxw); margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.move-pick {
+  appearance: none; cursor: pointer; font: inherit; min-width: 0;
+  flex: 0 1 calc((100% - 16px) / 3); min-height: 64px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  padding: 8px 6px; border-radius: 12px;
+  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .14);
+  color: #f1f3f6; -webkit-tap-highlight-color: transparent;
+  font-family: var(--display); font-size: 12.5px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase;
+  transition: background .12s ease, border-color .12s ease;
+}
+.move-pick svg { width: 26px; height: 26px; flex: none; color: #8cdae2; }
+.move-pick span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.move-pick:active { background: rgba(255, 255, 255, .16); }
+.move-pick.best { border-color: color-mix(in srgb, #8cdae2 55%, transparent); }
+.move-pick.on { background: color-mix(in srgb, #2aa7b8 32%, transparent); border-color: #8cdae2; }
+@media (min-width: 601px) { .move-pick { flex-basis: calc((100% - 32px) / 5); } }
+body.moving .app { padding-bottom: 240px; }
+body.moving .task.sel, body.scene-on.moving .task.sel { box-shadow: 0 2px 12px rgba(0, 0, 0, .22), inset 0 0 0 1.5px var(--accent); }
+body.moving .cat-btn .cat-label { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent) 70%, transparent); }
+
 /* ---- Modal / sheet ---- */
 .scrim { position: fixed; inset: 0; background: rgba(15,17,21,.4); backdrop-filter: blur(2px); z-index: 40; opacity: 0; pointer-events: none; transition: opacity .2s ease; }
 .scrim.on { opacity: 1; pointer-events: auto; }
@@ -1059,6 +1104,14 @@ body.scene-on .activefilter { width: fit-content; max-width: 100%; padding: 4px 
   <p class="credit">A Happy Little App by <a href="https://stewalexander.com/" target="_blank" rel="noopener noreferrer">Stew Alexander</a></p>
 </footer>
 
+<div class="move-tray" id="moveTray" role="group" aria-labelledby="moveTitle">
+  <div class="move-head">
+    <span class="move-title" id="moveTitle">Move to</span>
+    <button type="button" class="move-close" id="moveClose" aria-label="Cancel move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="move-picks" id="movePicks"></div>
+</div>
+
 <!-- Explicit rename dialog avoids Safari long-press/contenteditable conflicts. -->
 <div class="sheet" id="renameSheet" role="dialog" aria-modal="true" aria-labelledby="renameTitle" aria-hidden="true">
   <h2 id="renameTitle">Rename a folder</h2>
@@ -1161,6 +1214,7 @@ body.scene-on .activefilter { width: fit-content; max-width: 100%; padding: 4px 
       <div>Close folder <span class="kbd">tap again</span></div>
       <div>Back to dates <span class="kbd">esc</span></div>
       <div>File a task <span class="kbd">drag</span></div>
+      <div>On a phone <span class="kbd">tap, then folder</span></div>
       <div>Change folder <span class="kbd">row</span></div>
       <div><button type="button" class="btn" id="renameFolders">Rename folders…</button></div>
       <div>Work <span class="kbd">#work</span></div>
@@ -1176,7 +1230,7 @@ body.scene-on .activefilter { width: fit-content; max-width: 100%; padding: 4px 
 <div class="toast" id="toast" role="status"><span id="toastTxt"></span></div>
 
 <noscript><div style="max-width:560px;margin:60px auto;padding:0 24px;font-family:system-ui;color:#5d6168;text-align:center"><h1 style="color:#1a1c20">Troplist.com</h1><p>A calm, local-first to-do list that runs entirely in your browser. Please enable JavaScript to use it. Nothing is ever sent to a server.</p></div></noscript>
-<script src="app.js?v=1.4.5"></script>
+<script src="app.js?v=1.4.6"></script>
 <script src="soundscape.js?v=1.2.6"></script>
 <script src="ambient.js?v=1.3.2"></script>
 </body>
